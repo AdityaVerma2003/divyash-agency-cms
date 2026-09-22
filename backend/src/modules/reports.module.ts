@@ -21,7 +21,8 @@ const AMBER  = "#D97706";
 const MARGIN = 45;
 const PAGE_W = 595 - MARGIN * 2;
 
-function fmt(v: number | string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function fmt(v: any) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(v));
 }
 function fmtNum(v: number) {

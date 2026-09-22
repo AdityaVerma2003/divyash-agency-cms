@@ -81,7 +81,7 @@ async function recordRazorpayPayment(opts: {
       paymentAmount: paidAmtINR,
       paymentMethod: "RAZORPAY",
       paidAt:        new Date(),
-      totalAmount:   invoice.totalAmount,
+      totalAmount:   Number(invoice.totalAmount),
       amountDue,
     })
   ).catch(() => undefined);
@@ -197,7 +197,8 @@ router.post(
 
     // ── 4. Fetch payment + order from Razorpay (server-to-server) ─
     const razorpay  = getRazorpay();
-    let rzpPayment: Awaited<ReturnType<typeof razorpay.payments.fetch>>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rzpPayment: any;
     try {
       rzpPayment = await razorpay.payments.fetch(body.razorpay_payment_id);
     } catch {
@@ -210,7 +211,8 @@ router.post(
     }
 
     // ── 6. Verify order notes match the claimed invoiceId ──────────
-    let rzpOrder: Awaited<ReturnType<typeof razorpay.orders.fetch>>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rzpOrder: any;
     try {
       rzpOrder = await razorpay.orders.fetch(body.razorpay_order_id);
     } catch {

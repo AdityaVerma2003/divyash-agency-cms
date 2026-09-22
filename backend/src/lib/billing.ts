@@ -197,7 +197,7 @@ export async function sendInvoiceReminders(asOf: Date = new Date()): Promise<Rem
         clientName,
         invoiceNumber: inv.invoiceNumber,
         invoiceId: inv.id,
-        totalAmount: inv.totalAmount,
+        totalAmount: Number(inv.totalAmount),
         amountDue,
         dueDate: inv.dueDate,
         type: reminderType,

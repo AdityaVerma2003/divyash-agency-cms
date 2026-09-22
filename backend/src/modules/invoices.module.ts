@@ -84,7 +84,8 @@ router.get(
       throw ApiError.forbidden("You can only access your own invoices");
     }
 
-    const fmt = (v: number | string) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fmt = (v: any) =>
       new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(v));
 
     const fmtDate = (d: Date | string) =>
@@ -408,7 +409,7 @@ router.post(
         paymentAmount: data.amount,
         paymentMethod: data.method,
         paidAt:        payment.paidAt ?? new Date(),
-        totalAmount:   invoice.totalAmount,
+        totalAmount:   Number(invoice.totalAmount),
         amountDue,
       })
     ).catch(() => undefined);

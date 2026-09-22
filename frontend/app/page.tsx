@@ -1012,9 +1012,9 @@ function CtaSection() {
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <a href="tel:+918810376026"
+            <a href="tel:+919958915844"
               className="rounded-full bg-white px-8 py-3.5 font-semibold text-coral-600 shadow-xl hover:bg-coral-50 transition-colors">
-              Call +91 88103 76026
+              Call +91 99589 15844
             </a>
             <Link href="/contact"
               className="rounded-full border-2 border-white/60 px-8 py-3.5 font-semibold text-white hover:bg-white/10 transition-colors">
@@ -1044,7 +1044,7 @@ function Footer() {
             <p className="text-sm leading-relaxed max-w-xs">
               Delhi's growth partner for businesses that want measurable results — not just deliverables.
             </p>
-            <p className="mt-4 text-xs">info@divyashdigital.co.in · +91 88103 76026</p>
+            <p className="mt-4 text-xs">info@divyashdigital.co.in · +91 99589 15844</p>
           </div>
 
           <div>
