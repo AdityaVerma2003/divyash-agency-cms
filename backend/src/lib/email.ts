@@ -1,17 +1,31 @@
 import nodemailer from "nodemailer";
 
 function createTransporter() {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
 
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    return null; // not configured — fall back to console logging
+    return null;
   }
+
+  const port = Number(SMTP_PORT ?? 587);
+  const secure = port === 465;
 
   return nodemailer.createTransport({
     host: SMTP_HOST,
-    port: Number(SMTP_PORT ?? 587),
-    secure: Number(SMTP_PORT ?? 587) === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
+    port,
+    secure,
+    // requireTLS forces STARTTLS upgrade on port 587 — needed on cloud hosts like Render
+    requireTLS: !secure,
+    auth: {
+      user: SMTP_USER,
+      // Gmail App Passwords work with or without spaces — strip them to be safe
+      pass: SMTP_PASS.replace(/\s/g, ""),
+    },
+    tls: {
+      // Allow self-signed certs on the SMTP relay (common on some hosts)
+      rejectUnauthorized: true,
+      minVersion: "TLSv1.2",
+    },
   });
 }
 
@@ -19,15 +33,21 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   const transporter = createTransporter();
 
   if (!transporter) {
-    // Dev fallback — log to console so the link is visible during local testing
-    console.log("\n────── EMAIL (dev fallback) ──────");
+    console.log("\n────── EMAIL (dev fallback — SMTP not configured) ──────");
     console.log(`To:      ${to}`);
     console.log(`Subject: ${subject}`);
     console.log(`Body:\n${html.replace(/<[^>]*>/g, "")}`);
-    console.log("─────────────────────────────────\n");
+    console.log("────────────────────────────────────────────────────────\n");
     return;
   }
 
   const from = process.env.SMTP_FROM ?? "Divyash Digital <billing@divyashdigital.co.in>";
-  await transporter.sendMail({ from, to, subject, html });
+
+  try {
+    await transporter.sendMail({ from, to, subject, html });
+    console.log(`[email] sent to ${to} — "${subject}"`);
+  } catch (err) {
+    console.error(`[email] failed to send to ${to}:`, err instanceof Error ? err.message : err);
+    throw err;
+  }
 }
