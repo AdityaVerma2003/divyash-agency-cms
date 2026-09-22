@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.next/
+out/
+
+.env
+.env.local
+*.env
+
+*.log
+.DS_Store
+.vercel
+
+# Prisma — commit migrations but not the local SQLite dev DB
+backend/prisma/dev.db
+backend/prisma/dev.db-journal

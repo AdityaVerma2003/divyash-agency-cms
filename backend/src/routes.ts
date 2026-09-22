@@ -1,0 +1,41 @@
+import { Router } from "express";
+import authRoutes from "./modules/auth.module";
+import clientsRoutes from "./modules/clients.module";
+import servicesRoutes from "./modules/services.module";
+import clientServicesRoutes from "./modules/clientServices.module";
+import invoicesRoutes from "./modules/invoices.module";
+import dashboardRoutes from "./modules/dashboard.module";
+import postsRoutes from "./modules/posts.module";
+import campaignsRoutes from "./modules/campaigns.module";
+import leadsRoutes from "./modules/leads.module";
+import usersRoutes from "./modules/users.module";
+import auditLogsRoutes from "./modules/auditLogs.module";
+import notificationsRoutes from "./modules/notifications.module";
+import contactRoutes from "./modules/contact.module";
+import billingRoutes from "./modules/billing.module";
+import reportsRoutes from "./modules/reports.module";
+import razorpayRoutes from "./modules/razorpay.module";
+import { publicBlogRouter, adminBlogRouter } from "./modules/blogPosts.module";
+
+const router = Router();
+
+router.use("/auth", authRoutes);
+router.use("/clients", clientsRoutes);
+router.use("/services", servicesRoutes);
+router.use("/client-services", clientServicesRoutes);
+router.use("/invoices", invoicesRoutes);
+router.use("/dashboard", dashboardRoutes);
+router.use("/posts", postsRoutes);
+router.use("/campaigns", campaignsRoutes);
+router.use("/leads", leadsRoutes);
+router.use("/users", usersRoutes);
+router.use("/audit-logs", auditLogsRoutes);
+router.use("/notifications", notificationsRoutes);
+router.use("/contact", contactRoutes);
+router.use("/billing", billingRoutes);
+router.use("/reports", reportsRoutes);
+router.use("/razorpay", razorpayRoutes);
+router.use("/blog-posts", publicBlogRouter);
+router.use("/admin/blog-posts", adminBlogRouter);
+
+export default router;
