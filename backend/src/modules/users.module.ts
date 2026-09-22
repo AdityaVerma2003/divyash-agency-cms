@@ -103,7 +103,14 @@ router.delete(
     if (!user) throw ApiError.notFound("User not found");
     if (user.role === Role.CLIENT) throw ApiError.forbidden("Cannot delete client users here");
 
-    await prisma.user.delete({ where: { id: req.params.id } });
+    // Delete dependent records that have RESTRICT foreign keys before deleting the user
+    await prisma.$transaction([
+      prisma.notification.deleteMany({ where: { userId: req.params.id } }),
+      prisma.auditLog.updateMany({ where: { userId: req.params.id }, data: { userId: null } }),
+      prisma.blogPost.updateMany({ where: { authorId: req.params.id }, data: { authorId: req.user!.userId } }),
+      prisma.user.delete({ where: { id: req.params.id } }),
+    ]);
+
     res.status(204).send();
   })
 );
