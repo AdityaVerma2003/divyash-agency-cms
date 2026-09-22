@@ -116,7 +116,10 @@ router.post(
     const origin = process.env.CLIENT_ORIGIN ?? "http://localhost:3000";
     const resetUrl = `${origin}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
 
-    await sendEmail(
+    // Respond immediately — email is fire-and-forget so a timeout never returns 500
+    res.json({ message: GENERIC_MSG });
+
+    sendEmail(
       email,
       "Reset your Divyash Digital password",
       `
@@ -130,9 +133,9 @@ router.post(
         <p style="color:#98a2b3;font-size:12px;margin-top:32px">If you didn't request this, you can safely ignore this email.</p>
       </div>
       `
-    );
-
-    res.json({ message: GENERIC_MSG });
+    ).catch((err) => {
+      console.error(`[forgot-password] email to ${email} failed (reset token still valid):`, err instanceof Error ? err.message : err);
+    });
   })
 );
 

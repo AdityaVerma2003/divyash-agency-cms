@@ -78,7 +78,7 @@ export default function AdminTeamPage() {
     setSubmitting(true);
     try {
       await api.post<TeamMember>("/users", form, getAccessToken());
-      success("Invitation sent", `${form.name} will receive a setup email to activate their account.`);
+      success("Member added", `${form.name} has been added. A setup email is being sent to ${form.email} — this may take a moment.`);
       setShowModal(false);
       loadMembers();
     } catch (err) {

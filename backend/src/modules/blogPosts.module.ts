@@ -103,6 +103,7 @@ publicBlogRouter.get(
       prisma.blogPost.count({ where }),
     ]);
 
+    res.setHeader("Cache-Control", "public, max-age=120, stale-while-revalidate=60");
     res.json({ posts, total, page, limit, pages: Math.ceil(total / limit) });
   })
 );
@@ -118,6 +119,7 @@ publicBlogRouter.get(
     if (!post || post.status !== BlogPostStatus.PUBLISHED) {
       throw ApiError.notFound("Post not found");
     }
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=120");
     res.json(post);
   })
 );

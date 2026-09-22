@@ -23,17 +23,18 @@ router.get(
       paidThisMonth,
       suspendedClients,
       contractsEndingSoon,
+      monthlyRecurringRevenue,
     ] = await Promise.all([
       prisma.client.count(),
       prisma.clientService.count({ where: { status: SubscriptionStatus.ACTIVE } }),
-      prisma.invoice.findMany({
+      prisma.invoice.aggregate({
         where: { status: { in: [InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE] } },
-        select: { totalAmount: true },
+        _sum: { totalAmount: true },
       }),
       prisma.invoice.count({ where: { status: InvoiceStatus.OVERDUE } }),
-      prisma.payment.findMany({
+      prisma.payment.aggregate({
         where: { paidAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } },
-        select: { amount: true },
+        _sum: { amount: true },
       }),
       prisma.client.count({ where: { status: ClientStatus.SUSPENDED } }),
       prisma.clientService.findMany({
@@ -48,15 +49,14 @@ router.get(
           client: { select: { id: true, companyName: true } },
         },
       }),
+      prisma.clientService.aggregate({
+        where: { status: SubscriptionStatus.ACTIVE, billingCycle: "MONTHLY" },
+        _sum: { rate: true },
+      }),
     ]);
 
-    const outstandingAmount = outstandingInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
-    const revenueThisMonth = paidThisMonth.reduce((sum, p) => sum + Number(p.amount), 0);
-
-    const monthlyRecurringRevenue = await prisma.clientService.aggregate({
-      where: { status: SubscriptionStatus.ACTIVE, billingCycle: "MONTHLY" },
-      _sum: { rate: true },
-    });
+    const outstandingAmount = Number(outstandingInvoices._sum.totalAmount ?? 0);
+    const revenueThisMonth  = Number(paidThisMonth._sum.amount ?? 0);
 
     res.json({
       totalClients,
@@ -126,52 +126,54 @@ router.get(
         }),
       ]);
 
-    // Per-service performance (last 3 months)
-    const perService = await Promise.all(
-      activeServices.map(async (cs) => {
-        const category = cs.service.category;
-        if (category === "SMM") {
-          const posts = await prisma.post.findMany({
-            where: { clientServiceId: cs.id, publishedAt: { gte: threeMonthsAgo } },
-            select: { reach: true, likes: true, comments: true, shares: true },
-          });
-          return {
-            clientServiceId: cs.id,
-            serviceName: cs.service.name,
-            category,
-            totalPosts: posts.length,
-            totalReach: posts.reduce((s, p) => s + p.reach, 0),
-            totalEngagement: posts.reduce((s, p) => s + p.likes + p.comments + p.shares, 0),
-          };
-        }
-        if (category === "GOOGLE_ADS" || category === "META_ADS") {
-          const campaigns = await prisma.campaign.findMany({
-            where: { clientServiceId: cs.id, month: { gte: threeMonthsAgo } },
-            select: { spend: true, conversions: true, roas: true },
-          });
-          const totalSpendSvc = campaigns.reduce((s, c) => s + Number(c.spend), 0);
-          const totalConversions = campaigns.reduce((s, c) => s + c.conversions, 0);
-          const avgROAS =
-            campaigns.length > 0
-              ? campaigns.reduce((s, c) => s + Number(c.roas), 0) / campaigns.length
-              : 0;
-          return {
-            clientServiceId: cs.id,
-            serviceName: cs.service.name,
-            category,
-            totalSpend: totalSpendSvc,
-            totalConversions,
-            avgROAS: Math.round(avgROAS * 100) / 100,
-          };
-        }
-        // Other categories — return identity info only
+    // Per-service performance (last 3 months) — batch queries to avoid N+1
+    const smmIds = activeServices.filter((cs) => cs.service.category === "SMM").map((cs) => cs.id);
+    const adsIds = activeServices.filter((cs) => cs.service.category === "GOOGLE_ADS" || cs.service.category === "META_ADS").map((cs) => cs.id);
+
+    const [smmPosts, adsCampaigns] = await Promise.all([
+      smmIds.length > 0
+        ? prisma.post.findMany({
+            where: { clientServiceId: { in: smmIds }, publishedAt: { gte: threeMonthsAgo } },
+            select: { clientServiceId: true, reach: true, likes: true, comments: true, shares: true },
+          })
+        : Promise.resolve([]),
+      adsIds.length > 0
+        ? prisma.campaign.findMany({
+            where: { clientServiceId: { in: adsIds }, month: { gte: threeMonthsAgo } },
+            select: { clientServiceId: true, spend: true, conversions: true, roas: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const perService = activeServices.map((cs) => {
+      const category = cs.service.category;
+      if (category === "SMM") {
+        const posts = smmPosts.filter((p) => p.clientServiceId === cs.id);
         return {
           clientServiceId: cs.id,
           serviceName: cs.service.name,
           category,
+          totalPosts: posts.length,
+          totalReach: posts.reduce((s, p) => s + p.reach, 0),
+          totalEngagement: posts.reduce((s, p) => s + p.likes + p.comments + p.shares, 0),
         };
-      })
-    );
+      }
+      if (category === "GOOGLE_ADS" || category === "META_ADS") {
+        const campaigns = adsCampaigns.filter((c) => c.clientServiceId === cs.id);
+        const totalSpendSvc    = campaigns.reduce((s, c) => s + Number(c.spend), 0);
+        const totalConversions = campaigns.reduce((s, c) => s + c.conversions, 0);
+        const avgROAS = campaigns.length > 0 ? campaigns.reduce((s, c) => s + Number(c.roas), 0) / campaigns.length : 0;
+        return {
+          clientServiceId: cs.id,
+          serviceName: cs.service.name,
+          category,
+          totalSpend: totalSpendSvc,
+          totalConversions,
+          avgROAS: Math.round(avgROAS * 100) / 100,
+        };
+      }
+      return { clientServiceId: cs.id, serviceName: cs.service.name, category };
+    });
 
     // Reach trend: aggregate posts by calendar month (last 6 months)
     const reachByMonth: Record<string, number> = {};

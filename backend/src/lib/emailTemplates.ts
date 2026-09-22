@@ -34,7 +34,7 @@ function base(content: string): string {
         <tr>
           <td style="padding:16px 32px 24px;border-top:1px solid #E5E7EB;">
             <p style="margin:0;font-size:12px;color:#9CA3AF;text-align:center;">
-              Divyash Digital &nbsp;·&nbsp; info@divyashdigital.co.in &nbsp;·&nbsp; +91 99589 15844
+              Divyash Digital &nbsp;·&nbsp; info@divyashdigital.co.in &nbsp;·&nbsp; +91 88103 76026
             </p>
           </td>
         </tr>
@@ -97,7 +97,7 @@ export function paymentReceiptHtml(opts: {
     ${btn("View invoice", `${BASE_URL}/client/invoices/${invoiceId}`)}
 
     <p style="margin-top:24px;font-size:13px;color:#6B7280;">
-      If you have any questions, reply to this email or contact us at +91 99589 15844.
+      If you have any questions, reply to this email or contact us at +91 88103 76026.
     </p>`;
 
   return base(body);
@@ -150,7 +150,7 @@ export function invoiceReminderHtml(opts: {
     ${btn("Pay now / View invoice", `${BASE_URL}/client/invoices/${invoiceId}`)}
 
     <p style="margin-top:24px;font-size:13px;color:#6B7280;">
-      Questions? Contact us at info@divyashdigital.co.in or +91 99589 15844.
+      Questions? Contact us at info@divyashdigital.co.in or +91 88103 76026.
     </p>`;
 
   return base(body);

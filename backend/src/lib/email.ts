@@ -7,14 +7,15 @@ function createTransporter() {
     return null;
   }
 
-  const port = Number(SMTP_PORT ?? 587);
+  // Default to port 465 (SSL) — more reliable on cloud hosts like Render.
+  // Port 587 (STARTTLS) is often blocked by cloud providers' outbound firewall.
+  const port = Number(SMTP_PORT ?? 465);
   const secure = port === 465;
 
   return nodemailer.createTransport({
     host: SMTP_HOST,
     port,
     secure,
-    // requireTLS forces STARTTLS upgrade on port 587 — needed on cloud hosts like Render
     requireTLS: !secure,
     auth: {
       user: SMTP_USER,
@@ -22,10 +23,12 @@ function createTransporter() {
       pass: SMTP_PASS.replace(/\s/g, ""),
     },
     tls: {
-      // Allow self-signed certs on the SMTP relay (common on some hosts)
       rejectUnauthorized: true,
       minVersion: "TLSv1.2",
     },
+    connectionTimeout: 10000,  // 10s — fail fast rather than hanging
+    greetingTimeout:  10000,
+    socketTimeout:    15000,
   });
 }
 

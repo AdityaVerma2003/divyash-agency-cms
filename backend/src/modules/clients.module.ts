@@ -204,7 +204,41 @@ router.delete(
   "/:clientId",
   authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
-    await prisma.client.delete({ where: { id: req.params.clientId } });
+    const { clientId } = req.params;
+
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) throw ApiError.notFound("Client not found");
+
+    // Collect IDs of child records that have their own children
+    const [clientServices, invoices] = await Promise.all([
+      prisma.clientService.findMany({ where: { clientId }, select: { id: true } }),
+      prisma.invoice.findMany({ where: { clientId }, select: { id: true } }),
+    ]);
+    const csIds  = clientServices.map((cs) => cs.id);
+    const invIds = invoices.map((inv) => inv.id);
+
+    // Delete all nested children in dependency order before deleting the client.
+    // User.clientId is an optional FK — PostgreSQL will SET NULL it automatically.
+    await prisma.$transaction(async (tx) => {
+      // Invoice grandchildren
+      await tx.reminderLog.deleteMany({ where: { invoiceId: { in: invIds } } });
+      await tx.payment.deleteMany({ where: { invoiceId: { in: invIds } } });
+      await tx.invoiceItem.deleteMany({ where: { invoiceId: { in: invIds } } });
+      // Invoice children
+      await tx.invoice.deleteMany({ where: { clientId } });
+
+      // ClientService children
+      await tx.post.deleteMany({ where: { clientServiceId: { in: csIds } } });
+      await tx.campaign.deleteMany({ where: { clientServiceId: { in: csIds } } });
+      await tx.clientService.deleteMany({ where: { clientId } });
+
+      // Direct client children
+      await tx.lead.deleteMany({ where: { clientId } });
+      await tx.report.deleteMany({ where: { clientId } });
+
+      await tx.client.delete({ where: { id: clientId } });
+    });
+
     res.status(204).send();
   })
 );
