@@ -603,7 +603,7 @@ function WhyCard({ w, index, delay }: { w: typeof WHY[0]; index: number; delay: 
       {/* Connector to the next reason (desktop only) */}
       {!isLast && (
         <div
-          className="pointer-events-none absolute -right-4 top-8 z-10 hidden translate-x-1/2 text-[var(--muted)] opacity-25 transition-opacity duration-500 group-hover:opacity-50 md:block"
+          className="pointer-events-none absolute left-full top-8 z-10 hidden -translate-x-1/2 text-[var(--muted)] opacity-25 transition-opacity duration-500 group-hover:opacity-50 md:block"
           aria-hidden
         >
           <DoodleConnector down={index % 2 === 1} />
@@ -691,21 +691,24 @@ function WhySection() {
 }
 
 /* ── Process ────────────────────────────────────────────────────────────────── */
-/* Hand-drawn connector between steps — curves up or down for a sketched feel */
+/* Hand-drawn connector between cards — curves up or down for a sketched feel.
+   Sized to actually fit inside the grid gutter it sits in (20–40px across the
+   sections that use it); the old 110px version spanned way past the gap and
+   drew on top of the next card's icon instead of sitting between the two. */
 function DoodleConnector({ down = false }: { down?: boolean }) {
   return (
-    <svg width="110" height="48" viewBox="0 0 110 48" fill="none" aria-hidden>
+    <svg width="56" height="22" viewBox="0 0 56 22" fill="none" aria-hidden>
       <path
-        d={down ? "M4 16 C 30 44, 74 44, 100 24" : "M4 32 C 30 4, 74 4, 100 24"}
+        d={down ? "M2 7 C 16 20, 40 20, 47 11" : "M2 15 C 16 2, 40 2, 47 11"}
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.75"
         strokeLinecap="round"
-        strokeDasharray="5 6"
+        strokeDasharray="4 5"
       />
       <path
-        d="M92 17 L 101 24 L 92 31"
+        d="M43 6 L 51 11 L 43 16"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.75"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -728,7 +731,7 @@ function ProcessStep({ p, index, delay }: { p: typeof PROCESS[0]; index: number;
       {/* Connector to the next step (desktop only) */}
       {!isLast && (
         <div
-          className="pointer-events-none absolute -right-4 top-4 z-10 hidden translate-x-1/2 text-[var(--muted)] opacity-30 transition-opacity duration-500 group-hover:opacity-60 md:block"
+          className="pointer-events-none absolute left-full top-10 z-10 hidden -translate-x-1/2 text-[var(--muted)] opacity-30 transition-opacity duration-500 group-hover:opacity-60 md:block"
           aria-hidden
         >
           <DoodleConnector down={index % 2 === 1} />
@@ -1012,7 +1015,7 @@ function WorkCard({ item, index, isLast, delay }: { item: WorkItem; index: numbe
       {/* Connector to the next result (large screens only, where all 3 sit in one row) */}
       {!isLast && (
         <div
-          className="pointer-events-none absolute -right-4 top-8 z-10 hidden translate-x-1/2 text-[var(--muted)] opacity-25 transition-opacity duration-500 group-hover:opacity-50 lg:block"
+          className="pointer-events-none absolute left-full top-6 z-10 hidden -translate-x-1/2 text-[var(--muted)] opacity-25 transition-opacity duration-500 group-hover:opacity-50 lg:block"
           aria-hidden
         >
           <DoodleConnector down={index % 2 === 1} />
