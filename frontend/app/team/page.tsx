@@ -93,6 +93,108 @@ function SocialIcon({ href, type }: { href: string; type: string }) {
   );
 }
 
+/* ── Static founders section ──────────────────────────────────────────────────
+   CEO/COO are fixed entries (not admin-managed) until real photos/profiles are
+   ready. Swap `photoUrl` below to a real image path once available — everything
+   else (name, title, tags, LinkedIn) can be edited directly in FOUNDERS. */
+interface Founder {
+  name: string;
+  title: string;
+  tags: string[];
+  photoUrl: string | null;
+  linkedin?: string;
+}
+
+const FOUNDERS: Founder[] = [
+  { name: "Divya Singh", title: "Founder, CEO", tags: ["Business Development", "Strategy", "Vision", "Growth"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790432848/divya.webp' },
+  { name: "Yash Verma", title: "Co-Founder, COO", tags: ["Operations", "People", "Execution", "Culture"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790432848/yash.webp' },
+];
+
+function DefaultAvatar() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-[var(--surface-2)]">
+      <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--muted)] opacity-40" aria-hidden>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+      </svg>
+    </div>
+  );
+}
+
+function FounderCard({ founder, reverse }: { founder: Founder; reverse?: boolean }) {
+  const { ref, visible } = useReveal();
+  return (
+    <div
+      ref={ref as React.RefObject<HTMLDivElement>}
+      className={`reveal ${visible ? "visible" : ""} grid grid-cols-1 items-start gap-8 sm:grid-cols-2`}
+    >
+      <div className={`aspect-[4/5] w-full overflow-hidden rounded-3xl border border-[var(--border)] ${reverse ? "sm:order-2" : ""}`}>
+        {founder.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={founder.photoUrl} alt={founder.name} className="h-full w-full object-cover" />
+        ) : (
+          <DefaultAvatar />
+        )}
+      </div>
+
+      {/* Offset down from the photo's top edge — gives the name/title room to breathe
+          rather than sitting centered against the full portrait height */}
+      <div className={`sm:pt-10 md:pt-14 ${reverse ? "sm:order-1" : ""}`}>
+        <p className="font-display text-2xl font-bold text-[var(--ink)]">{founder.name}</p>
+        <p className="mt-1.5 text-sm font-semibold text-coral-500">{founder.title}</p>
+        <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-[var(--muted)]">
+          {founder.tags.map((tag, i) => (
+            <span key={tag} className="flex items-center gap-2">
+              {i > 0 && <span className="text-[var(--border)]">|</span>}
+              {tag}
+            </span>
+          ))}
+        </p>
+        {founder.linkedin ? (
+          <a
+            href={founder.linkedin}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 flex h-9 w-9 items-center justify-center rounded-lg bg-coral-500 text-white transition-colors hover:bg-coral-600"
+            aria-label={`${founder.name} on LinkedIn`}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+              <rect x="2" y="9" width="4" height="12" />
+              <circle cx="4" cy="4" r="2" />
+            </svg>
+          </a>
+        ) : (
+          <span
+            className="mt-5 flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--muted)] opacity-50"
+            title="Add a LinkedIn link"
+            aria-hidden
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+              <rect x="2" y="9" width="4" height="12" />
+              <circle cx="4" cy="4" r="2" />
+            </svg>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FoundersSection() {
+  return (
+    <section className="mx-auto max-w-5xl px-5 pb-20">
+      <p className="section-label mb-10 text-center">Meet the Founders</p>
+      <div className="space-y-16">
+        {FOUNDERS.map((f, i) => (
+          <FounderCard key={f.name} founder={f} reverse={i % 2 === 1} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function LeaderCard({ member }: { member: TeamMember }) {
   const { ref, visible } = useReveal();
   const socials = parseSocials(member.socialLinks);
@@ -177,6 +279,8 @@ export default function TeamPage() {
           </p>
         </div>
       </section>
+
+      <FoundersSection />
 
       <section className="mx-auto max-w-6xl px-5 pb-24 space-y-16">
         {loading ? (

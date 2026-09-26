@@ -227,9 +227,9 @@ const SERVICES = [
 ];
 
 const WHY = [
-  { num: "01", title: "Real results, not reports.", desc: "Every campaign is tied to a revenue or lead outcome you agreed on up front. We measure what moves your business — not just what looks good in a deck." },
-  { num: "02", title: "Dedicated management team.", desc: "One consistent team who knows your brand, your market, and your goals — no rotating freelancers, no hand-offs, no starting over every quarter." },
-  { num: "03", title: "Transparent report & strategies.", desc: "Weekly updates and monthly plain-English reports tell you exactly what happened, why, and what we're doing next — no jargon, no surprises." },
+  { num: "01", title: "Real results, not reports.", desc: "Every campaign is tied to a revenue or lead outcome you agreed on up front. We measure what moves your business — not just what looks good in a deck.", accent: "#6366F1" },
+  { num: "02", title: "Dedicated management team.", desc: "One consistent team who knows your brand, your market, and your goals — no rotating freelancers, no hand-offs, no starting over every quarter.", accent: "#2DBFA0" },
+  { num: "03", title: "Transparent report & strategies.", desc: "Weekly updates and monthly plain-English reports tell you exactly what happened, why, and what we're doing next — no jargon, no surprises.", accent: "#F5883C" },
 ];
 
 const PROCESS = [
@@ -588,13 +588,63 @@ function StatsSection() {
 }
 
 /* ── Why Us ─────────────────────────────────────────────────────────────────── */
-function WhyCard({ w, delay }: { w: typeof WHY[0]; delay: string }) {
+const WHY_ICONS = [DoodleBarChart, DoodleTarget, DoodleMagnifier];
+
+function WhyCard({ w, index, delay }: { w: typeof WHY[0]; index: number; delay: string }) {
   const { ref, visible } = useReveal();
+  const Icon = WHY_ICONS[index];
+  const isLast = index === WHY.length - 1;
+
   return (
-    <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${delay} ${visible ? "visible" : ""}`}>
-      <span className="font-display text-4xl font-extrabold text-coral-500 opacity-20 select-none">{w.num}</span>
-      <h3 className="mt-2 font-display text-xl font-semibold text-[var(--ink)]">{w.title}</h3>
+    <div
+      ref={ref as React.RefObject<HTMLDivElement>}
+      className={`reveal ${delay} ${visible ? "visible" : ""} group relative`}
+    >
+      {/* Connector to the next reason (desktop only) */}
+      {!isLast && (
+        <div
+          className="pointer-events-none absolute -right-4 top-8 z-10 hidden translate-x-1/2 text-[var(--muted)] opacity-25 transition-opacity duration-500 group-hover:opacity-50 md:block"
+          aria-hidden
+        >
+          <DoodleConnector down={index % 2 === 1} />
+        </div>
+      )}
+
+      {/* Icon medallion */}
+      <div className="relative mb-5 flex h-16 w-16 items-center justify-center">
+        <svg
+          className="absolute inset-0 h-full w-full animate-spin-slow opacity-30 transition-opacity duration-300 group-hover:opacity-70"
+          viewBox="0 0 64 64"
+          fill="none"
+          aria-hidden
+        >
+          <circle cx="32" cy="32" r="30" stroke={w.accent} strokeWidth="1.5" strokeDasharray="4 7" strokeLinecap="round" />
+        </svg>
+        <div
+          className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 bg-[var(--surface)] transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg motion-reduce:group-hover:scale-100"
+          style={{ borderColor: w.accent, color: w.accent }}
+        >
+          <span className="transition-transform duration-500 group-hover:rotate-[10deg]">
+            <Icon size={19} />
+          </span>
+        </div>
+        <span
+          className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full font-display text-[10px] font-bold text-white shadow-sm"
+          style={{ backgroundColor: w.accent }}
+        >
+          {w.num}
+        </span>
+      </div>
+
+      <h3 className="font-display text-xl font-semibold text-[var(--ink)]">{w.title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{w.desc}</p>
+
+      {/* Underline that grows on hover */}
+      <span
+        className="mt-4 block h-0.5 w-0 rounded-full transition-all duration-500 group-hover:w-12"
+        style={{ backgroundColor: w.accent }}
+        aria-hidden
+      />
     </div>
   );
 }
@@ -603,20 +653,36 @@ function WhySection() {
   const { ref, visible } = useReveal();
   return (
     <section id="why" className="relative py-20 md:py-28 overflow-hidden">
-      {/* Background doodles */}
-      <div className="pointer-events-none absolute top-12 right-4 text-[#F87DA3] opacity-[0.05]" aria-hidden><DoodleStar size={80} /></div>
-      <div className="pointer-events-none absolute bottom-12 left-4 text-[#5B7CF7] opacity-[0.04]" aria-hidden><DoodleLightning size={64} /></div>
+      {/* Floating background doodles */}
+      <div className="pointer-events-none absolute left-[10%] top-10 text-[#F87DA3] opacity-[0.06] animate-float" aria-hidden><DoodleStar size={70} /></div>
+      <div className="pointer-events-none absolute right-[8%] top-20 text-[#5B7CF7] opacity-[0.05] animate-float-slower" aria-hidden><DoodleLightning size={56} /></div>
+      <div className="pointer-events-none absolute bottom-14 left-[6%] text-coral-500 opacity-[0.06] animate-float-slow" aria-hidden><DoodleDollar size={40} /></div>
+      <div className="pointer-events-none absolute bottom-20 right-[16%] text-[#2DBFA0] opacity-[0.05] animate-float" aria-hidden><DoodleMegaphone size={46} /></div>
 
-      <div className="mx-auto max-w-6xl px-5">
-        <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""} mb-14 text-center`}>
+      <div className="relative mx-auto max-w-6xl px-5">
+        <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""} mb-16 text-center`}>
           <p className="section-label mb-3">Why choose us</p>
-          <h2 className="font-display text-3xl font-bold text-[var(--ink)] md:text-4xl">
+          <h2 className="font-display text-3xl font-bold tracking-tight text-[var(--ink)] md:text-4xl">
             Marketing Strategies Built For Businesses<br className="hidden sm:block" /> That Measures Everything.
           </h2>
+
+          {/* Hand-drawn underline that draws itself in on reveal */}
+          <svg className="mx-auto mt-3 h-3 w-48 text-coral-500" viewBox="0 0 200 12" fill="none" aria-hidden>
+            <path
+              d="M3 8C40 2 80 2 100 6s60 4 97-2"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray="260"
+              className={visible ? "animate-draw" : ""}
+              style={visible ? undefined : { strokeDashoffset: 260 }}
+            />
+          </svg>
         </div>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+
+        <div className="relative grid grid-cols-1 gap-12 md:grid-cols-3 md:gap-10">
           {WHY.map((w, i) => (
-            <WhyCard key={w.num} w={w} delay={`reveal-delay-${i + 1}`} />
+            <WhyCard key={w.num} w={w} index={i} delay={`reveal-delay-${i + 1}`} />
           ))}
         </div>
       </div>
@@ -802,20 +868,40 @@ function WorkTeaserSection() {
   ];
 
   return (
-    <section className="py-20 md:py-28">
-      <div className="mx-auto max-w-6xl px-5">
+    <section className="relative overflow-hidden py-20 md:py-28">
+      {/* Floating background doodles */}
+      <div className="pointer-events-none absolute left-[6%] top-14 text-coral-500 opacity-[0.06] animate-float-slow" aria-hidden><DoodleChart size={50} /></div>
+      <div className="pointer-events-none absolute right-[9%] top-10 text-[#2DBFA0] opacity-[0.06] animate-float" aria-hidden><DoodleTarget size={44} /></div>
+      <div className="pointer-events-none absolute bottom-12 left-[16%] text-[#5B7CF7] opacity-[0.05] animate-float" aria-hidden><DoodleStar size={36} /></div>
+      <div className="pointer-events-none absolute bottom-16 right-[6%] text-[#F5883C] opacity-[0.06] animate-float-slower" aria-hidden><DoodleRocket size={48} /></div>
+
+      <div className="relative mx-auto max-w-6xl px-5">
 
         {/* Header */}
         <div
           ref={ref as React.RefObject<HTMLDivElement>}
-          className={`reveal ${visible ? "visible" : ""} mb-12 flex flex-col gap-6 md:mb-14 md:flex-row md:items-end md:justify-between`}
+          className={`reveal ${visible ? "visible" : ""} mb-12 flex flex-col gap-6 md:mb-16 md:flex-row md:items-end md:justify-between`}
         >
           <div className="max-w-xl">
             <p className="section-label mb-3">Our work</p>
             <h2 className="font-display text-3xl font-bold tracking-tight text-[var(--ink)] md:text-4xl">
               Numbers that speak
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-[var(--muted)]">
+
+            {/* Hand-drawn underline that draws itself in on reveal */}
+            <svg className="mt-3 h-3 w-48 text-coral-500" viewBox="0 0 200 12" fill="none" aria-hidden>
+              <path
+                d="M3 8C40 2 80 2 100 6s60 4 97-2"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray="260"
+                className={visible ? "animate-draw" : ""}
+                style={visible ? undefined : { strokeDashoffset: 260 }}
+              />
+            </svg>
+
+            <p className="mt-5 text-base leading-relaxed text-[var(--muted)]">
               We report on revenue, pipeline and cost per acquisition — not impressions.
               Here are three recent engagements and what they actually moved.
             </p>
@@ -823,16 +909,17 @@ function WorkTeaserSection() {
 
           <Link
             href="/work"
-            className="inline-flex flex-shrink-0 items-center gap-1.5 self-start text-sm font-semibold text-coral-500 transition-colors hover:text-coral-600 md:self-auto md:pb-1"
+            className="group inline-flex flex-shrink-0 items-center gap-1.5 self-start text-sm font-semibold text-coral-500 transition-colors hover:text-coral-600 md:self-auto md:pb-1"
           >
-            View all case studies →
+            View all case studies
+            <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
           </Link>
         </div>
 
         {/* Result cards */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="relative grid grid-cols-1 gap-12 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           {items.map((item, i) => (
-            <WorkCard key={i} item={item} delay={`reveal-delay-${i + 1}`} />
+            <WorkCard key={i} item={item} index={i} isLast={i === items.length - 1} delay={`reveal-delay-${i + 1}`} />
           ))}
         </div>
 
@@ -915,17 +1002,32 @@ interface WorkItem {
   color: string;
 }
 
-function WorkCard({ item, delay }: { item: WorkItem; delay: string }) {
+function WorkCard({ item, index, isLast, delay }: { item: WorkItem; index: number; isLast: boolean; delay: string }) {
   const { ref, visible } = useReveal();
   return (
     <div
       ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${delay} ${visible ? "visible" : ""} group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-7 transition-all hover:-translate-y-1 hover:border-coral-500/30 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/30 motion-reduce:translate-y-0`}
+      className={`reveal ${delay} ${visible ? "visible" : ""} group relative flex flex-col overflow-visible rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-7 transition-all hover:-translate-y-1 hover:border-coral-500/30 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/30 motion-reduce:translate-y-0`}
     >
+      {/* Connector to the next result (large screens only, where all 3 sit in one row) */}
+      {!isLast && (
+        <div
+          className="pointer-events-none absolute -right-4 top-8 z-10 hidden translate-x-1/2 text-[var(--muted)] opacity-25 transition-opacity duration-500 group-hover:opacity-50 lg:block"
+          aria-hidden
+        >
+          <DoodleConnector down={index % 2 === 1} />
+        </div>
+      )}
+
       {/* Icon + timeframe */}
       <div className="mb-5 flex items-center justify-between gap-3">
-        <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${item.color}`}>
-          <DoodleBarChart size={20} />
+        <div className="relative flex h-12 w-12 items-center justify-center">
+          <svg className="absolute inset-0 h-full w-full animate-spin-slow opacity-30 transition-opacity duration-300 group-hover:opacity-60" viewBox="0 0 48 48" fill="none" aria-hidden>
+            <circle cx="24" cy="24" r="22" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 6" strokeLinecap="round" className={item.color.replace("bg-", "text-")} />
+          </svg>
+          <div className={`relative inline-flex h-9 w-9 items-center justify-center rounded-xl ${item.color} transition-transform duration-500 group-hover:rotate-[10deg]`}>
+            <DoodleBarChart size={18} />
+          </div>
         </div>
         <span className="rounded-full border border-[var(--border)] px-2.5 py-1 text-[11px] font-medium text-[var(--muted)]">
           {item.period}
