@@ -5,6 +5,37 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { useReveal } from "@/hooks/useReveal";
 
+/* ── Local decorative doodles (kept file-local — not exported from the landing page) ── */
+function DoodleStar({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+function DoodleLightning({ size = 26 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+function DoodleHashtag({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" />
+      <line x1="10" y1="3" x2="8" y2="21" /><line x1="16" y1="3" x2="14" y2="21" />
+    </svg>
+  );
+}
+function DoodleCursor({ size = 26 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 3l14 9-7 1-4 7-3-17z" /><circle cx="18" cy="18" r="3" strokeDasharray="2 1.5" />
+    </svg>
+  );
+}
+
 const SERVICES = [
   {
     name: "Search Engine Optimisation",
@@ -269,22 +300,67 @@ const SERVICES = [
   },
 ];
 
-function ServiceBlock({ svc, index }: { svc: typeof SERVICES[0]; index: number }) {
+const DECOR_DOODLES = [
+  <DoodleStar key="star" size={30} />,
+  <DoodleLightning key="lightning" size={28} />,
+  <DoodleHashtag key="hashtag" size={24} />,
+  <DoodleCursor key="cursor" size={26} />,
+];
+
+function ServiceBlock({ svc, index, total }: { svc: typeof SERVICES[0]; index: number; total: number }) {
   const { ref, visible } = useReveal();
   const isEven = index % 2 === 0;
+  const isLast = index === total - 1;
   return (
     <div ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${visible ? "visible" : ""} grid grid-cols-1 gap-8 py-5 md:grid-cols-2 md:py-20 md:border-b md:border-[var(--border)] md:last:border-0`}>
+      className={`reveal ${visible ? "visible" : ""} group relative grid grid-cols-1 gap-8 py-5 md:grid-cols-2 md:py-20 md:border-b md:border-[var(--border)] md:last:border-0`}>
+
+      {/* Growth line running through the center gutter, connecting every service */}
+      {!isLast && (
+        <div
+          className="pointer-events-none absolute left-1/2 top-24 z-0 hidden w-px -translate-x-1/2 md:block"
+          style={{ height: "calc(100% + 2.5rem)" }}
+          aria-hidden
+        >
+          <div className="h-full w-full border-l-2 border-dashed opacity-25 transition-opacity duration-500 group-hover:opacity-50" style={{ borderColor: svc.accent }} />
+        </div>
+      )}
 
       {/* Content — a self-contained card on mobile, plain column on desktop */}
       <div
-        className={`${isEven ? "md:order-1" : "md:order-2"} rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none`}
+        className={`relative z-10 ${isEven ? "md:order-1" : "md:order-2"} rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none`}
       >
-        <div className={`mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl ${svc.color}`}>
-          {svc.icon}
+        {/* Icon medallion with rotating dashed orbit + step number */}
+        <div className="relative mb-4 flex h-14 w-14 items-center justify-center">
+          <svg className="absolute inset-0 h-full w-full animate-spin-slow opacity-40 transition-opacity duration-300 group-hover:opacity-80" viewBox="0 0 56 56" fill="none" aria-hidden>
+            <circle cx="28" cy="28" r="26" stroke={svc.accent} strokeWidth="1.5" strokeDasharray="4 7" strokeLinecap="round" />
+          </svg>
+          <div className={`relative flex h-11 w-11 items-center justify-center rounded-2xl ${svc.color} transition-transform duration-500 group-hover:rotate-[8deg] group-hover:scale-110 motion-reduce:group-hover:scale-100`}>
+            {svc.icon}
+          </div>
+          <span
+            className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full font-display text-[10px] font-bold text-white shadow-sm"
+            style={{ backgroundColor: svc.accent }}
+          >
+            {String(index + 1).padStart(2, "0")}
+          </span>
         </div>
         <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)] mb-2">{svc.tagline}</p>
         <h2 className="font-display text-2xl font-bold text-[var(--ink)] md:text-3xl mb-4">{svc.name}</h2>
+
+        {/* Hand-drawn underline that draws itself in on reveal */}
+        <svg className="-mt-2 mb-4 h-2.5 w-32 text-current" style={{ color: svc.accent }} viewBox="0 0 140 10" fill="none" aria-hidden>
+          <path
+            d="M2 7C28 2 56 2 70 5s42 3 68-1"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeDasharray="180"
+            className={visible ? "animate-draw" : ""}
+            style={visible ? undefined : { strokeDashoffset: 180 }}
+          />
+        </svg>
+
         <p className="text-[var(--muted)] leading-relaxed mb-6">{svc.description}</p>
 
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-5 mb-6">
@@ -317,18 +393,27 @@ function ServiceBlock({ svc, index }: { svc: typeof SERVICES[0]; index: number }
       </div>
 
       {/* Visual card — desktop only; on mobile its content lives in the card above */}
-      <div className={`${isEven ? "md:order-2" : "md:order-1"} hidden items-center justify-center md:flex`}>
+      <div className={`relative z-10 ${isEven ? "md:order-2" : "md:order-1"} hidden items-center justify-center md:flex`}>
         <div className="relative w-full max-w-xs">
-          <div className="blob absolute inset-0 -m-6 opacity-[0.06]" style={{ backgroundColor: svc.accent }} />
-          <div className="relative rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-xl shadow-black/5 dark:shadow-black/30 text-center">
-            <div className={`mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl ${svc.color}`}>
+          <div className="blob absolute inset-0 -m-6 opacity-[0.06] transition-opacity duration-500 group-hover:opacity-[0.1]" style={{ backgroundColor: svc.accent }} />
+          {/* Floating decorative doodle, unique per row */}
+          <div
+            className={`pointer-events-none absolute ${isEven ? "-right-6 -top-6" : "-left-6 -top-6"} opacity-[0.12] animate-float-slow`}
+            style={{ color: svc.accent }}
+            aria-hidden
+          >
+            {DECOR_DOODLES[index % DECOR_DOODLES.length]}
+          </div>
+          <div className="relative rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-xl shadow-black/5 dark:shadow-black/30 text-center transition-all duration-300 group-hover:-translate-y-1.5 group-hover:shadow-2xl motion-reduce:group-hover:translate-y-0">
+            <div className={`mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl ${svc.color} transition-transform duration-500 group-hover:rotate-[8deg]`}>
               {svc.icon}
             </div>
             <p className="font-display text-xl font-bold text-[var(--ink)] mb-1">{svc.name}</p>
             <p className="text-sm text-[var(--muted)] mb-6">{svc.tagline}</p>
             <Link href="/contact"
-              className="block w-full rounded-full bg-coral-500 py-2.5 text-sm font-semibold text-white hover:bg-coral-600 transition-colors">
-              Get started →
+              className="group/btn flex w-full items-center justify-center gap-1.5 rounded-full bg-coral-500 py-2.5 text-sm font-semibold text-white hover:bg-coral-600 transition-colors">
+              Get started
+              <span className="transition-transform duration-300 group-hover/btn:translate-x-1">→</span>
             </Link>
           </div>
         </div>
@@ -345,11 +430,29 @@ export default function ServicesPage() {
       {/* Hero */}
       <section className="relative pt-28 pb-16 md:pt-36 md:pb-20 overflow-hidden">
         <div className="blob pointer-events-none absolute -top-24 -right-24 h-80 w-80 bg-coral-500 opacity-[0.07]" aria-hidden />
-        <div className="mx-auto max-w-6xl px-5 text-center">
+        {/* Floating background doodles */}
+        <div className="pointer-events-none absolute left-[8%] top-16 text-[#2DBFA0] opacity-[0.07] animate-float" aria-hidden><DoodleStar size={44} /></div>
+        <div className="pointer-events-none absolute right-[12%] top-28 text-[#5B7CF7] opacity-[0.06] animate-float-slower" aria-hidden><DoodleLightning size={38} /></div>
+        <div className="pointer-events-none absolute bottom-10 left-[16%] text-coral-500 opacity-[0.06] animate-float-slow" aria-hidden><DoodleHashtag size={34} /></div>
+
+        <div className="relative mx-auto max-w-6xl px-5 text-center">
           <p className="section-label mb-4">What we do</p>
-          <h1 className="font-display text-4xl font-extrabold text-[var(--ink)] md:text-5xl mb-6">
+          <h1 className="font-display text-4xl font-extrabold tracking-tight text-[var(--ink)] md:text-5xl mb-6">
             Every service. One outcome: <span className="text-coral-500">growth.</span>
           </h1>
+
+          {/* Hand-drawn underline that draws itself in on load */}
+          <svg className="mx-auto -mt-2 mb-6 h-3 w-48 text-coral-500" viewBox="0 0 200 12" fill="none" aria-hidden>
+            <path
+              d="M3 8C40 2 80 2 100 6s60 4 97-2"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray="260"
+              className="animate-draw"
+            />
+          </svg>
+
           <p className="mx-auto max-w-2xl text-lg text-[var(--muted)] leading-relaxed">
             {SERVICES.length} specialised digital marketing services — each designed to work independently
             or as part of a full-stack growth strategy tailored to your business.
@@ -358,19 +461,22 @@ export default function ServicesPage() {
       </section>
 
       {/* Services */}
-      <section className="mx-auto max-w-6xl px-5 pb-24">
+      <section className="relative mx-auto max-w-6xl px-5 pb-24">
         {SERVICES.map((svc, i) => (
-          <ServiceBlock key={svc.slug} svc={svc} index={i} />
+          <ServiceBlock key={svc.slug} svc={svc} index={i} total={SERVICES.length} />
         ))}
       </section>
 
       {/* CTA */}
-      <section className="bg-coral-500 py-16">
-        <div className="mx-auto max-w-3xl px-5 text-center text-white">
+      <section className="relative overflow-hidden bg-coral-500 py-16">
+        <div className="pointer-events-none absolute left-[8%] top-8 text-white opacity-[0.08] animate-float" aria-hidden><DoodleStar size={40} /></div>
+        <div className="pointer-events-none absolute right-[10%] bottom-8 text-white opacity-[0.08] animate-float-slow" aria-hidden><DoodleLightning size={36} /></div>
+        <div className="relative mx-auto max-w-3xl px-5 text-center text-white">
           <h2 className="font-display text-3xl font-extrabold mb-4">Not sure where to start?</h2>
           <p className="opacity-85 mb-8">Book a free audit and we&apos;ll tell you exactly which services will move the needle for your business — no pitch, no pressure.</p>
-          <Link href="/contact" className="inline-block rounded-full bg-white px-8 py-3.5 font-semibold text-coral-600 hover:bg-coral-50 transition-colors">
-            Book your free audit →
+          <Link href="/contact" className="group/cta inline-flex items-center gap-1.5 rounded-full bg-white px-8 py-3.5 font-semibold text-coral-600 hover:bg-coral-50 transition-colors">
+            Book your free audit
+            <span className="transition-transform duration-300 group-hover/cta:translate-x-1">→</span>
           </Link>
         </div>
       </section>

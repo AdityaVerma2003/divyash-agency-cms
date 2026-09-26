@@ -297,16 +297,51 @@ export default function ContactPage() {
             {/* Social */}
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] mb-4">Follow us</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2.5">
                 {[
-                  { name: "Instagram", href: "https://www.instagram.com/divyashdigital/", color: "bg-pink-100 text-pink-600 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400" },
-                  { name: "LinkedIn", href: "https://www.linkedin.com/company/divyash-digital/", color: "bg-sky-100 text-sky-600 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400" },
-                  { name: "YouTube", href: "https://www.youtube.com/@divyashdigital", color: "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400" },
-                  { name: "Pinterest", href: "https://in.pinterest.com/divyashdigitalagency/", color: "bg-rose-100 text-rose-600 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-400" },
+                  {
+                    name: "Instagram", href: "https://www.instagram.com/divyashdigital/",
+                    color: "bg-pink-100 text-pink-600 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
+                    icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                        <rect x="2" y="2" width="20" height="20" rx="5" />
+                        <circle cx="12" cy="12" r="5" />
+                        <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    name: "LinkedIn", href: "https://www.linkedin.com/company/divyash-digital/",
+                    color: "bg-sky-100 text-sky-600 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+                    icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    name: "YouTube", href: "https://www.youtube.com/@divyashdigital",
+                    color: "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400",
+                    icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.54C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+                        <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" stroke="none" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    name: "Pinterest", href: "https://in.pinterest.com/divyashdigitalagency/",
+                    color: "bg-rose-100 text-rose-600 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-400",
+                    icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M12 2C6.48 2 2 6.48 2 12c0 4.24 2.65 7.86 6.39 9.29-.09-.78-.17-1.98.04-2.83.18-.76 1.23-5.22 1.23-5.22s-.31-.63-.31-1.56c0-1.46.85-2.56 1.9-2.56.9 0 1.33.67 1.33 1.48 0 .9-.58 2.26-.87 3.51-.25 1.05.52 1.9 1.54 1.9 1.85 0 3.09-2.37 3.09-5.17 0-2.13-1.43-3.62-3.47-3.62-2.36 0-3.75 1.77-3.75 3.6 0 .71.27 1.48.61 1.9.07.08.08.15.06.23-.06.25-.2.81-.23.93-.04.15-.13.18-.3.11-1.12-.52-1.82-2.17-1.82-3.49 0-2.84 2.06-5.45 5.94-5.45 3.12 0 5.55 2.22 5.55 5.19 0 3.1-1.95 5.59-4.65 5.59-.91 0-1.76-.47-2.05-1.03l-.56 2.08c-.2.78-.75 1.76-1.12 2.36.85.26 1.75.4 2.68.4 5.52 0 10-4.48 10-10S17.52 2 12 2z" />
+                      </svg>
+                    ),
+                  },
                 ].map((social) => (
-                  <a key={social.name} href={social.href} target="_blank" rel="noopener noreferrer"
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${social.color}`}>
-                    {social.name}
+                  <a key={social.name} href={social.href} target="_blank" rel="noopener noreferrer" aria-label={social.name} title={social.name}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${social.color}`}>
+                    {social.icon}
                   </a>
                 ))}
               </div>

@@ -30,7 +30,7 @@ function parseSocials(raw: string | null): SocialLinks {
 }
 
 function Avatar({ member, large }: { member: TeamMember; large?: boolean }) {
-  const size = large ? "h-24 w-24 text-2xl" : "h-16 w-16 text-lg";
+  const size = large ? "h-32 w-32 text-3xl" : "h-28 w-28 text-xl";
   if (member.photoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -106,8 +106,8 @@ interface Founder {
 }
 
 const FOUNDERS: Founder[] = [
-  { name: "Divya Singh", title: "Founder, CEO", tags: ["Business Development", "Strategy", "Vision", "Growth"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790432848/divya.webp' },
-  { name: "Yash Verma", title: "Co-Founder, COO", tags: ["Operations", "People", "Execution", "Culture"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790432848/yash.webp' },
+  { name: "Divya Singh", title: "Founder, CEO", tags: ["Business Development", "Strategy", "Vision", "Growth"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790432848/divya.webp', linkedin: "https://www.linkedin.com" },
+  { name: "Yash Verma", title: "Co-Founder, COO", tags: ["Operations", "People", "Execution", "Culture"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790432848/yash.webp', linkedin: "https://www.linkedin.com" },
 ];
 
 function DefaultAvatar() {
@@ -158,10 +158,8 @@ function FounderCard({ founder, reverse }: { founder: Founder; reverse?: boolean
             className="mt-5 flex h-9 w-9 items-center justify-center rounded-lg bg-coral-500 text-white transition-colors hover:bg-coral-600"
             aria-label={`${founder.name} on LinkedIn`}
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-              <rect x="2" y="9" width="4" height="12" />
-              <circle cx="4" cy="4" r="2" />
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
             </svg>
           </a>
         ) : (
@@ -170,10 +168,8 @@ function FounderCard({ founder, reverse }: { founder: Founder; reverse?: boolean
             title="Add a LinkedIn link"
             aria-hidden
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-              <rect x="2" y="9" width="4" height="12" />
-              <circle cx="4" cy="4" r="2" />
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
             </svg>
           </span>
         )}
@@ -225,7 +221,7 @@ function MemberCard({ member, delay }: { member: TeamMember; delay: string }) {
   return (
     <div
       ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${delay} ${visible ? "visible" : ""} flex flex-col items-center text-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5`}
+      className={`reveal ${delay} ${visible ? "visible" : ""} flex flex-col items-center text-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6`}
     >
       <Avatar member={member} />
       <div>
@@ -284,10 +280,10 @@ export default function TeamPage() {
 
       <section className="mx-auto max-w-6xl px-5 pb-24 space-y-16">
         {loading ? (
-          <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 flex flex-col items-center gap-3">
-                <div className="h-16 w-16 rounded-2xl bg-[var(--surface-2)]" />
+              <div key={i} className="animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 flex flex-col items-center gap-4">
+                <div className="h-28 w-28 rounded-2xl bg-[var(--surface-2)]" />
                 <div className="h-3 rounded bg-[var(--border)] w-2/3" />
                 <div className="h-2.5 rounded bg-[var(--border)] w-1/2" />
               </div>
@@ -313,7 +309,7 @@ export default function TeamPage() {
             {rest.length > 0 && (
               <div>
                 <p className="section-label mb-6">Our team</p>
-                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
+                <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                   {rest.map((m, i) => (
                     <MemberCard key={m.id} member={m} delay={`reveal-delay-${(i % 6) + 1}`} />
                   ))}
