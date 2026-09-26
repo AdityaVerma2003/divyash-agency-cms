@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import path from "path";
 import routes from "./routes";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 
@@ -25,9 +24,6 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
-
-// Serve uploaded files (blog covers, report PDFs). Swap path for a CDN/S3 URL to go cloud.
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.use("/api", routes);
 

@@ -40,6 +40,11 @@ export default function PortalShell({ allowedRoles, navItems, children }: Portal
         router.replace("/login");
         return;
       }
+      // Account managers must finish onboarding first; super admins skip it
+      if (current.role === "ACCOUNT_MANAGER" && current.onboardingStatus !== "COMPLETE") {
+        router.replace("/team/complete-profile");
+        return;
+      }
       setUser(current);
       setChecking(false);
       // Load notifications after auth confirmed
@@ -193,18 +198,18 @@ export default function PortalShell({ allowedRoles, navItems, children }: Portal
     return (
       <>
         {/* Wordmark */}
-        <div className="mb-8 px-3 flex items-center gap-2.5">
+        <div className="mb-8 px-3 flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.webp"
             alt="Divyash Digital"
-            className="h-8 w-8 flex-shrink-0 object-contain"
+            className="h-10 w-auto flex-shrink-0 object-contain lg:h-11"
           />
-          <div>
-            <p className="text-sm font-semibold tracking-tight text-white leading-tight">
+          <div className="min-w-0">
+            <p className="font-display text-base font-bold leading-tight text-white">
               Divyash Digital
             </p>
-            <p className="text-[10px] text-white/40 leading-tight">
+            <p className="mt-0.5 text-[11px] leading-tight text-white/40">
               {isPortalClient ? "Client portal" : "Agency portal"}
             </p>
           </div>
@@ -330,15 +335,17 @@ export default function PortalShell({ allowedRoles, navItems, children }: Portal
             </svg>
           </button>
 
-          {/* Logo + brand */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.webp"
               alt="Divyash Digital"
-              className="h-7 w-7 flex-shrink-0 object-contain"
+              className="h-8 w-auto flex-shrink-0 object-contain sm:h-9"
             />
-            <p className="text-sm font-semibold text-white truncate">Divyash Digital</p>
+            <p className="truncate font-display text-sm font-bold leading-tight text-white">
+              Divyash Digital
+            </p>
           </div>
 
           {/* Current page label */}

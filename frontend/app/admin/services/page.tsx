@@ -9,7 +9,9 @@ import type { Service, ClientService } from "@/types";
 
 type ServiceCategory =
   | "SEO" | "SMM" | "GOOGLE_ADS" | "META_ADS"
-  | "WEB_DESIGN" | "GRAPHIC_DESIGN" | "CONTENT";
+  | "WEB_DESIGN" | "GRAPHIC_DESIGN" | "CONTENT"
+  | "PERFORMANCE_MARKETING" | "GOOGLE_MY_BUSINESS" | "LOCAL_SEO"
+  | "BRAND_PROMOTION" | "EVENT_COVERAGE";
 
 const CATEGORY_LABELS: Record<ServiceCategory, string> = {
   SEO: "SEO",
@@ -19,21 +21,33 @@ const CATEGORY_LABELS: Record<ServiceCategory, string> = {
   WEB_DESIGN: "Web Design",
   GRAPHIC_DESIGN: "Graphic Design",
   CONTENT: "Content",
+  PERFORMANCE_MARKETING: "Performance Marketing",
+  GOOGLE_MY_BUSINESS: "Google My Business",
+  LOCAL_SEO: "Local SEO",
+  BRAND_PROMOTION: "Brand Promotion",
+  EVENT_COVERAGE: "Event Coverage",
 };
 
 const CATEGORY_CONFIG: Record<ServiceCategory, { bg: string; text: string; dot: string }> = {
-  SEO:           { bg: "bg-emerald-50 dark:bg-emerald-900/20",   text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
-  SMM:           { bg: "bg-coral-50 dark:bg-coral-900/20",       text: "text-coral-600 dark:text-coral-400",     dot: "bg-coral-500" },
-  GOOGLE_ADS:    { bg: "bg-amber-50 dark:bg-amber-900/20",       text: "text-amber-700 dark:text-amber-400",     dot: "bg-amber-500" },
-  META_ADS:      { bg: "bg-purple-50 dark:bg-purple-900/20",     text: "text-purple-700 dark:text-purple-400",   dot: "bg-purple-500" },
-  WEB_DESIGN:    { bg: "bg-cyan-50 dark:bg-cyan-900/20",         text: "text-cyan-700 dark:text-cyan-400",       dot: "bg-cyan-500" },
-  GRAPHIC_DESIGN:{ bg: "bg-pink-50 dark:bg-pink-900/20",         text: "text-pink-700 dark:text-pink-400",       dot: "bg-pink-500" },
-  CONTENT:       { bg: "bg-[var(--surface-2)]",                  text: "text-[var(--muted)]",                    dot: "bg-[var(--muted)]" },
+  SEO:                  { bg: "bg-emerald-50 dark:bg-emerald-900/20",   text: "text-emerald-700 dark:text-emerald-400",   dot: "bg-emerald-500" },
+  SMM:                  { bg: "bg-coral-50 dark:bg-coral-900/20",       text: "text-coral-600 dark:text-coral-400",       dot: "bg-coral-500" },
+  GOOGLE_ADS:           { bg: "bg-amber-50 dark:bg-amber-900/20",       text: "text-amber-700 dark:text-amber-400",       dot: "bg-amber-500" },
+  META_ADS:             { bg: "bg-purple-50 dark:bg-purple-900/20",     text: "text-purple-700 dark:text-purple-400",     dot: "bg-purple-500" },
+  WEB_DESIGN:           { bg: "bg-cyan-50 dark:bg-cyan-900/20",         text: "text-cyan-700 dark:text-cyan-400",         dot: "bg-cyan-500" },
+  GRAPHIC_DESIGN:       { bg: "bg-pink-50 dark:bg-pink-900/20",         text: "text-pink-700 dark:text-pink-400",         dot: "bg-pink-500" },
+  CONTENT:              { bg: "bg-[var(--surface-2)]",                  text: "text-[var(--muted)]",                      dot: "bg-[var(--muted)]" },
+  PERFORMANCE_MARKETING:{ bg: "bg-orange-50 dark:bg-orange-900/20",     text: "text-orange-700 dark:text-orange-400",     dot: "bg-orange-500" },
+  GOOGLE_MY_BUSINESS:   { bg: "bg-blue-50 dark:bg-blue-900/20",         text: "text-blue-700 dark:text-blue-400",         dot: "bg-blue-500" },
+  LOCAL_SEO:            { bg: "bg-teal-50 dark:bg-teal-900/20",         text: "text-teal-700 dark:text-teal-400",         dot: "bg-teal-500" },
+  BRAND_PROMOTION:      { bg: "bg-rose-50 dark:bg-rose-900/20",         text: "text-rose-700 dark:text-rose-400",         dot: "bg-rose-500" },
+  EVENT_COVERAGE:       { bg: "bg-indigo-50 dark:bg-indigo-900/20",     text: "text-indigo-700 dark:text-indigo-400",     dot: "bg-indigo-500" },
 };
 
 const CATEGORY_ICONS: Record<ServiceCategory, string> = {
   SEO: "🔍", SMM: "📱", GOOGLE_ADS: "📊", META_ADS: "🎯",
   WEB_DESIGN: "💻", GRAPHIC_DESIGN: "🎨", CONTENT: "✍️",
+  PERFORMANCE_MARKETING: "🚀", GOOGLE_MY_BUSINESS: "📍", LOCAL_SEO: "🗺️",
+  BRAND_PROMOTION: "✨", EVENT_COVERAGE: "🎬",
 };
 
 function CategoryPill({ category }: { category: string }) {

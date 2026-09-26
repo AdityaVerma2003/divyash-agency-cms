@@ -1,56 +1,42 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-function createTransporter() {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+// Sending domain (divyashdigital.co.in) is verified in Resend.
+const FROM = process.env.RESEND_FROM ?? "Divyash Digital <info@divyashdigital.co.in>";
+const REPLY_TO = process.env.RESEND_REPLY_TO ?? "info@divyashdigital.co.in";
 
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    return null;
-  }
-
-  // Default to port 465 (SSL) — more reliable on cloud hosts like Render.
-  // Port 587 (STARTTLS) is often blocked by cloud providers' outbound firewall.
-  const port = Number(SMTP_PORT ?? 465);
-  const secure = port === 465;
-
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port,
-    secure,
-    requireTLS: !secure,
-    auth: {
-      user: SMTP_USER,
-      // Gmail App Passwords work with or without spaces — strip them to be safe
-      pass: SMTP_PASS.replace(/\s/g, ""),
-    },
-    tls: {
-      rejectUnauthorized: true,
-      minVersion: "TLSv1.2",
-    },
-    connectionTimeout: 10000,  // 10s — fail fast rather than hanging
-    greetingTimeout:  10000,
-    socketTimeout:    15000,
-  });
+function getClient(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
 }
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  const transporter = createTransporter();
+  const client = getClient();
 
-  if (!transporter) {
-    console.log("\n────── EMAIL (dev fallback — SMTP not configured) ──────");
+  if (!client) {
+    console.log("\n────── EMAIL (dev fallback — RESEND_API_KEY not configured) ──────");
     console.log(`To:      ${to}`);
     console.log(`Subject: ${subject}`);
     console.log(`Body:\n${html.replace(/<[^>]*>/g, "")}`);
-    console.log("────────────────────────────────────────────────────────\n");
+    console.log("──────────────────────────────────────────────────────────────────\n");
     return;
   }
 
-  const from = process.env.SMTP_FROM ?? "Divyash Digital <billing@divyashdigital.co.in>";
+  const { error } = await client.emails.send({
+    from: FROM,
+    to,
+    subject,
+    html,
+    replyTo: REPLY_TO,
+  });
 
-  try {
-    await transporter.sendMail({ from, to, subject, html });
-    console.log(`[email] sent to ${to} — "${subject}"`);
-  } catch (err) {
-    console.error(`[email] failed to send to ${to}:`, err instanceof Error ? err.message : err);
-    throw err;
+  if (error) {
+    // Surface the two failures that actually happen in practice, since Resend's
+    // message alone ("Invalid `from` field") doesn't say which domain is wrong.
+    console.error(`[email] failed to send to ${to}: ${error.message}`);
+    console.error(`[email] from=${FROM} — check this domain is verified at https://resend.com/domains`);
+    throw new Error(error.message);
   }
+
+  console.log(`[email] sent to ${to} — "${subject}"`);
 }

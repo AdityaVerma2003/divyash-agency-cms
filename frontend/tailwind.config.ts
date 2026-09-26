@@ -63,6 +63,11 @@ const config: Config = {
         "float-slower":  "float 12s ease-in-out infinite",
         "blob-spin":     "blobSpin 20s linear infinite",
         "fade-up":       "fadeUp 0.6s ease forwards",
+        "marquee":       "marquee 45s linear infinite",
+        "marquee-slow":  "marquee 60s linear infinite",
+        "spin-slow":     "spin 14s linear infinite",
+        "draw":          "draw 1.4s ease-out forwards",
+        "wiggle":        "wiggle 2.5s ease-in-out infinite",
       },
       keyframes: {
         float: {
@@ -79,6 +84,20 @@ const config: Config = {
         fadeUp: {
           "0%":   { opacity: "0", transform: "translateY(20px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        // Track holds the logo list twice, so -50% lands on an identical frame
+        marquee: {
+          "0%":   { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+        // Pairs with strokeDasharray to draw an SVG path on
+        draw: {
+          "0%":   { strokeDashoffset: "260" },
+          "100%": { strokeDashoffset: "0" },
+        },
+        wiggle: {
+          "0%, 100%": { transform: "rotate(-4deg)" },
+          "50%":      { transform: "rotate(4deg)" },
         },
       },
     },

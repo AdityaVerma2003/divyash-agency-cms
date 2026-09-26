@@ -65,9 +65,11 @@ export default function ForgotPasswordPage() {
           <img
             src="/logo.webp"
             alt="Divyash Digital"
-            className="mx-auto mb-4 h-16 w-16 object-contain drop-shadow-lg"
+            className="mx-auto mb-0 h-20 w-auto object-contain drop-shadow-lg sm:h-24"
           />
-          <p className="font-display text-lg font-bold text-[var(--ink)]">Divyash Digital</p>
+          <p className="font-display text-2xl font-bold tracking-tight text-[var(--ink)] sm:text-3xl">
+            Divyash Digital
+          </p>
         </div>
 
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-7 shadow-xl shadow-black/5 dark:shadow-black/30">

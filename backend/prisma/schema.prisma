@@ -29,6 +29,11 @@ enum ServiceCategory {
   WEB_DESIGN
   GRAPHIC_DESIGN
   CONTENT
+  PERFORMANCE_MARKETING
+  GOOGLE_MY_BUSINESS
+  LOCAL_SEO
+  BRAND_PROMOTION
+  EVENT_COVERAGE
 }
 
 enum BillingCycle {
@@ -75,20 +80,43 @@ enum BlogPostStatus {
   PUBLISHED
 }
 
+enum CampaignObjective {
+  LEAD_GENERATION
+  AWARENESS
+  REACH_AND_ENGAGEMENT
+  APP_INSTALL
+  SOCIAL_MEDIA_VIEWS
+  INFLUENCES
+  OTHERS
+}
+
+enum OnboardingStatus {
+  INVITED
+  PENDING
+  COMPLETE
+}
+
 // ── Core identity ───────────────────────────────────────────────────────
 
 model User {
-  id                   String    @id @default(uuid())
+  id                   String           @id @default(uuid())
   name                 String
-  email                String    @unique
+  email                String           @unique
   passwordHash         String
   role                 Role
   clientId             String?
-  client               Client?   @relation(fields: [clientId], references: [id])
+  client               Client?          @relation(fields: [clientId], references: [id])
   resetToken           String?
   resetTokenExpiresAt  DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  onboardingStatus     OnboardingStatus @default(INVITED)
+  photoUrl             String?
+  mobile               String?
+  address              String?
+  designation          String?
+  bankDetails          String?
+  socialLinks          String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   managedClients Client[]       @relation("AccountManager")
   auditLogs      AuditLog[]
@@ -112,6 +140,7 @@ model Client {
   accountManagerId  String?
   accountManager    User?        @relation("AccountManager", fields: [accountManagerId], references: [id])
   onboardedAt       DateTime     @default(now())
+  agreementDetails  String?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
@@ -120,6 +149,8 @@ model Client {
   invoices       Invoice[]
   leads          Lead[]
   reports        Report[]
+  clientReports  ClientReport[]
+  caseStudies    CaseStudy[]
 }
 
 // ── Services & subscriptions ────────────────────────────────────────────
@@ -229,16 +260,18 @@ model Post {
 }
 
 model Campaign {
-  id              String        @id @default(uuid())
+  id              String            @id @default(uuid())
   clientServiceId String
-  clientService   ClientService @relation(fields: [clientServiceId], references: [id])
-  month           DateTime
-  spend           Decimal       @default(0) @db.Decimal(12, 2)
-  impressions     Int           @default(0)
-  clicks          Int           @default(0)
-  conversions     Int           @default(0)
-  roas            Decimal       @default(0) @db.Decimal(6, 2)
-  createdAt       DateTime      @default(now())
+  clientService   ClientService     @relation(fields: [clientServiceId], references: [id])
+  campaignName    String
+  adGroup         String?
+  adSet           String?
+  objective       CampaignObjective
+  spend           Decimal           @default(0) @db.Decimal(12, 2)
+  impressions     Int               @default(0)
+  clicks          Int               @default(0)
+  conversions     Int               @default(0)
+  createdAt       DateTime          @default(now())
 }
 
 model Lead {
@@ -259,6 +292,51 @@ model Report {
   month       DateTime
   fileUrl     String
   generatedAt DateTime @default(now())
+}
+
+// ── Weekly client reporting ──────────────────────────────────────────────
+
+model ClientReport {
+  id                          String   @id @default(uuid())
+  clientId                    String
+  client                      Client   @relation(fields: [clientId], references: [id])
+  weekStartDate               DateTime
+
+  smmTotalPosts               Int?
+  smmReach                    Int?
+  smmTraffic                  Int?
+
+  seoBacklinks                Int?
+  seoTrafficGrowth            Decimal? @db.Decimal(5, 2)
+  seoKeywordRanks             String?
+  seoBlogsCount               Int?
+  seoErrors                   String?
+
+  paidAdsReportUrl            String?
+
+  localSeoReviewsGained       Int?
+  localSeoPosts               Int?
+  localSeoTotalClicks         Int?
+  localSeoCallsReceived       Int?
+  localSeoProfileInteractions Int?
+  localSeoBookings            Int?
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@unique([clientId, weekStartDate])
+}
+
+// ── Case studies ─────────────────────────────────────────────────────────
+
+model CaseStudy {
+  id        String   @id @default(uuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  title     String?
+  pdfUrl    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ── System ───────────────────────────────────────────────────────────────
@@ -299,6 +377,9 @@ model BlogPost {
   publishedAt     DateTime?
   metaTitle       String?
   metaDescription String?
+  primaryKeyword  String?
+  keywords        String?
+  faqSchema       String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }

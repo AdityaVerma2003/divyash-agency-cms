@@ -2,29 +2,32 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { getAccessToken } from "@/lib/auth";
+import { getAccessToken, fetchCurrentUser } from "@/lib/auth";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
+import { DESIGNATIONS } from "@/lib/designations";
 
 interface TeamMember {
   id: string;
   name: string;
   email: string;
   role: "SUPER_ADMIN" | "ACCOUNT_MANAGER";
+  onboardingStatus: "INVITED" | "PENDING" | "COMPLETE";
+  photoUrl?: string | null;
+  mobile?: string | null;
+  designation?: string | null;
   createdAt: string;
 }
 
 const ROLE_CONFIG = {
-  SUPER_ADMIN: {
-    label: "Super Admin",
-    bg: "bg-violet-100 dark:bg-violet-900/30",
-    text: "text-violet-700 dark:text-violet-300",
-  },
-  ACCOUNT_MANAGER: {
-    label: "Account Manager",
-    bg: "bg-sky-100 dark:bg-sky-900/30",
-    text: "text-sky-700 dark:text-sky-300",
-  },
+  SUPER_ADMIN: { label: "Super Admin", bg: "bg-violet-100 dark:bg-violet-900/30", text: "text-violet-700 dark:text-violet-300" },
+  ACCOUNT_MANAGER: { label: "Account Manager", bg: "bg-sky-100 dark:bg-sky-900/30", text: "text-sky-700 dark:text-sky-300" },
+};
+
+const ONBOARDING_CONFIG = {
+  INVITED: { label: "Invited", bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300" },
+  PENDING: { label: "Pending", bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-300" },
+  COMPLETE: { label: "Complete", bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-700 dark:text-emerald-300" },
 };
 
 const AVATAR_COLORS = ["#6366F1", "#2DBFA0", "#5B7CF7", "#F87DA3", "#D97706", "#7C3AED"];
@@ -42,9 +45,15 @@ interface InviteForm {
   name: string;
   email: string;
   role: "ACCOUNT_MANAGER" | "SUPER_ADMIN";
+  designation: string;
 }
 
-const EMPTY_FORM: InviteForm = { name: "", email: "", role: "ACCOUNT_MANAGER" };
+const EMPTY_FORM: InviteForm = {
+  name: "",
+  email: "",
+  role: "ACCOUNT_MANAGER",
+  designation: "",
+};
 
 export default function AdminTeamPage() {
   const { success, error: toastError, warning } = useToast();
@@ -54,6 +63,7 @@ export default function AdminTeamPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmMember, setConfirmMember] = useState<TeamMember | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   function loadMembers() {
     api
@@ -62,7 +72,10 @@ export default function AdminTeamPage() {
       .catch((err: Error) => toastError("Could not load team", err.message));
   }
 
-  useEffect(() => { loadMembers(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    loadMembers();
+    fetchCurrentUser().then((u) => setCurrentUserRole(u?.role ?? null)).catch(() => null);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openModal() {
     setForm(EMPTY_FORM);
@@ -71,14 +84,14 @@ export default function AdminTeamPage() {
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim() || !form.email.trim()) {
-      warning("Required fields missing", "Name and email are required.");
+    if (!form.name.trim() || !form.email.trim() || !form.designation) {
+      warning("Required fields missing", "Name, email and designation are required.");
       return;
     }
     setSubmitting(true);
     try {
       await api.post<TeamMember>("/users", form, getAccessToken());
-      success("Member added", `${form.name} has been added. A setup email is being sent to ${form.email} — this may take a moment.`);
+      success("Member added", `${form.name} has been added. A setup email is being sent to ${form.email}.`);
       setShowModal(false);
       loadMembers();
     } catch (err) {
@@ -86,10 +99,6 @@ export default function AdminTeamPage() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  async function handleDelete(member: TeamMember) {
-    setConfirmMember(member);
   }
 
   async function confirmDelete() {
@@ -129,10 +138,10 @@ export default function AdminTeamPage() {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Card grid */}
       {!members ? (
-        <div className="space-y-3 animate-pulse">
-          {[1, 2].map((i) => <div key={i} className="h-16 rounded-xl bg-[var(--border)] opacity-40" />)}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-pulse">
+          {[1, 2, 3].map((i) => <div key={i} className="h-40 rounded-2xl bg-[var(--border)] opacity-40" />)}
         </div>
       ) : members.length === 0 ? (
         <div className="card py-16 text-center">
@@ -147,68 +156,64 @@ export default function AdminTeamPage() {
           <button onClick={openModal} className="btn btn-primary mt-4">+ Invite teammate</button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm shadow-black/[0.04] dark:shadow-black/20">
-          {/* Mobile cards */}
-          <div className="divide-y divide-[var(--border)] md:hidden">
-            {members.map((m) => {
-              const cfg = ROLE_CONFIG[m.role];
-              return (
-                <div key={m.id} className="flex items-center gap-3 px-4 py-4">
-                  <div className="h-9 w-9 flex-shrink-0 rounded-lg flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: avatarColor(m.name) }} aria-hidden>
-                    {m.name.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-[var(--ink)] truncate">{m.name}</p>
-                    <p className="text-xs text-[var(--muted)] truncate">{m.email}</p>
-                    <span className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(m)}
-                    disabled={deletingId === m.id}
-                    className="flex-shrink-0 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold text-[var(--muted)] hover:border-red-400 hover:text-red-500 transition-all disabled:opacity-40"
-                  >
-                    {deletingId === m.id ? "…" : "Remove"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Desktop table */}
-          <div className="hidden md:block">
-            <div className="grid grid-cols-[2fr_2fr_160px_120px_80px] border-b border-[var(--border)] bg-[var(--surface-2)] px-5 py-3">
-              {["Name", "Email", "Role", "Joined", ""].map((h) => (
-                <span key={h} className="text-[10px] font-bold uppercase tracking-[0.07em] text-[var(--muted)]">{h}</span>
-              ))}
-            </div>
-            <div className="divide-y divide-[var(--border)]">
-              {members.map((m) => {
-                const cfg = ROLE_CONFIG[m.role];
-                return (
-                  <div key={m.id} className="grid grid-cols-[2fr_2fr_160px_120px_80px] items-center px-5 py-4 hover:bg-[var(--surface-2)] transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-8 w-8 flex-shrink-0 rounded-lg flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: avatarColor(m.name) }} aria-hidden>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {members.map((m) => {
+            const roleCfg = ROLE_CONFIG[m.role];
+            const obCfg = ONBOARDING_CONFIG[m.onboardingStatus ?? "INVITED"];
+            return (
+              <div key={m.id} className="card flex flex-col gap-4">
+                {/* Top row: avatar + badges */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {m.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.photoUrl} alt={m.name} className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />
+                    ) : (
+                      <div
+                        className="h-12 w-12 flex-shrink-0 rounded-xl flex items-center justify-center text-lg font-bold text-white"
+                        style={{ backgroundColor: avatarColor(m.name) }}
+                        aria-hidden
+                      >
                         {m.name.slice(0, 1).toUpperCase()}
                       </div>
-                      <span className="font-semibold text-sm text-[var(--ink)] truncate">{m.name}</span>
-                    </div>
-                    <span className="text-sm text-[var(--muted)] truncate">{m.email}</span>
-                    <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
-                    <span className="text-sm text-[var(--muted)]">{formatDate(m.createdAt)}</span>
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => handleDelete(m)}
-                        disabled={deletingId === m.id}
-                        className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--muted)] hover:border-red-400 hover:text-red-500 transition-all disabled:opacity-40"
-                      >
-                        {deletingId === m.id ? "…" : "Remove"}
-                      </button>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-[var(--ink)] truncate">{m.name}</p>
+                      <p className="text-xs text-[var(--muted)] truncate">
+                        {m.designation ?? <span className="italic">Profile incomplete</span>}
+                      </p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                  <span className={`mt-0.5 shrink-0 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${obCfg.bg} ${obCfg.text}`}>
+                    {obCfg.label}
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-1.5 text-xs text-[var(--muted)]">
+                  <p className="truncate">{m.email}</p>
+                  {m.mobile && <p>{m.mobile}</p>}
+                  <p>Joined {formatDate(m.createdAt)}</p>
+                </div>
+
+                {/* Role badge + actions */}
+                <div className="flex items-center justify-between mt-auto pt-2 border-t border-[var(--border)]">
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${roleCfg.bg} ${roleCfg.text}`}>
+                    {roleCfg.label}
+                  </span>
+                  {currentUserRole === "SUPER_ADMIN" && (
+                    <button
+                      onClick={() => setConfirmMember(m)}
+                      disabled={deletingId === m.id}
+                      className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)] hover:border-red-400 hover:text-red-500 transition-all disabled:opacity-40"
+                    >
+                      {deletingId === m.id ? "…" : "Remove"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -231,7 +236,7 @@ export default function AdminTeamPage() {
         </Modal>
       )}
 
-      {/* Invite modal */}
+      {/* Invite modal — name, email, role only */}
       {showModal && (
         <Modal title="Invite teammate" onClose={() => setShowModal(false)}>
           <form onSubmit={handleInvite} noValidate>
@@ -261,19 +266,40 @@ export default function AdminTeamPage() {
               </label>
 
               <label className="block text-sm">
-                <span className="mb-1 block text-[var(--muted)]">Role</span>
+                <span className="mb-1 block text-[var(--muted)]">Designation <span className="text-danger">*</span></span>
+                <select
+                  required
+                  value={form.designation}
+                  onChange={(e) => setForm((p) => ({ ...p, designation: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="" disabled>Select a designation…</option>
+                  {DESIGNATIONS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-[var(--muted)]">
+                  The job title they&apos;re being onboarded for. They can change it later on their profile.
+                </span>
+              </label>
+
+              <label className="block text-sm">
+                <span className="mb-1 block text-[var(--muted)]">Portal access</span>
                 <select
                   value={form.role}
                   onChange={(e) => setForm((p) => ({ ...p, role: e.target.value as InviteForm["role"] }))}
                   className={inputClass}
                 >
-                  <option value="ACCOUNT_MANAGER">Account Manager</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
+                  <option value="ACCOUNT_MANAGER">Account Manager — standard access</option>
+                  <option value="SUPER_ADMIN">Super Admin — full access</option>
                 </select>
+                <span className="mt-1 block text-xs text-[var(--muted)]">
+                  Controls what they can see and do inside the portal.
+                </span>
               </label>
 
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-xs text-[var(--muted)] leading-relaxed">
-                <strong className="text-[var(--ink)]">How it works:</strong> We'll send {form.name.trim() || "them"} an invitation email with a link to set their own password and activate their account. The link expires in 24 hours.
+                <strong className="text-[var(--ink)]">How it works:</strong> {form.name.trim() || "They"} will receive an invitation email to set their password. After logging in, they complete the rest of their profile (photo, contact details).
               </div>
             </div>
 

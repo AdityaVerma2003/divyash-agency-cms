@@ -966,16 +966,37 @@ function PostsSection({ clientServiceId, serviceName }: PostsSectionProps) {
 
 // ─── Campaigns section ────────────────────────────────────────────────────────
 
+const CAMPAIGN_OBJECTIVES = [
+  { value: "LEAD_GENERATION",      label: "Lead Generation" },
+  { value: "AWARENESS",            label: "Awareness" },
+  { value: "REACH_AND_ENGAGEMENT", label: "Reach & Engagement" },
+  { value: "APP_INSTALL",          label: "App Install" },
+  { value: "SOCIAL_MEDIA_VIEWS",   label: "Social Media Views" },
+  { value: "INFLUENCES",           label: "Influences" },
+  { value: "OTHERS",               label: "Others" },
+] as const;
+
 interface AddCampaignForm {
-  month: string;
+  campaignName: string;
+  adGroup: string;
+  adSet: string;
+  objective: string;
   spend: string;
   impressions: string;
   clicks: string;
   conversions: string;
-  roas: string;
 }
 
-const EMPTY_CAMPAIGN_FORM: AddCampaignForm = { month: "", spend: "0", impressions: "0", clicks: "0", conversions: "0", roas: "0" };
+const EMPTY_CAMPAIGN_FORM: AddCampaignForm = {
+  campaignName: "",
+  adGroup: "",
+  adSet: "",
+  objective: "",
+  spend: "0",
+  impressions: "0",
+  clicks: "0",
+  conversions: "0",
+};
 
 interface AddCampaignModalProps {
   clientServiceId: string;
@@ -991,7 +1012,8 @@ function AddCampaignModal({ clientServiceId, onClose, onAdded }: AddCampaignModa
 
   function validate(): boolean {
     const e: Partial<Record<keyof AddCampaignForm, string>> = {};
-    if (!form.month) e.month = "Required";
+    if (!form.campaignName.trim()) e.campaignName = "Required";
+    if (!form.objective) e.objective = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -1003,14 +1025,16 @@ function AddCampaignModal({ clientServiceId, onClose, onAdded }: AddCampaignModa
     try {
       await api.post("/campaigns", {
         clientServiceId,
-        month: form.month,
+        campaignName: form.campaignName.trim(),
+        adGroup: form.adGroup.trim() || undefined,
+        adSet: form.adSet.trim() || undefined,
+        objective: form.objective,
         spend: Number(form.spend) || 0,
         impressions: Math.floor(Number(form.impressions)) || 0,
         clicks: Math.floor(Number(form.clicks)) || 0,
         conversions: Math.floor(Number(form.conversions)) || 0,
-        roas: Number(form.roas) || 0,
       }, getAccessToken());
-      success("Campaign month added");
+      success("Campaign added");
       onAdded();
     } catch (err) {
       toastError("Failed to add campaign", err instanceof Error ? err.message : undefined);
@@ -1025,23 +1049,38 @@ function AddCampaignModal({ clientServiceId, onClose, onAdded }: AddCampaignModa
   }
 
   return (
-    <Modal title="Add month" onClose={onClose}>
+    <Modal title="Add Campaign" onClose={onClose}>
       <form onSubmit={handleSubmit} noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="block text-sm sm:col-span-2">
-            <span className="mb-1 block text-[var(--muted)]">Month <span className="text-danger">*</span></span>
-            <input type="month" className={`${INPUT_CLS} ${errors.month ? "border-danger" : ""}`} value={form.month} onChange={(e) => setField("month", e.target.value)} />
-            {errors.month && <p className="mt-1 text-xs text-danger">{errors.month}</p>}
+            <span className="mb-1 block text-[var(--muted)]">Campaign Name <span className="text-danger">*</span></span>
+            <input type="text" className={`${INPUT_CLS} ${errors.campaignName ? "border-danger" : ""}`} value={form.campaignName} onChange={(e) => setField("campaignName", e.target.value)} placeholder="e.g. Summer Sale 2024" />
+            {errors.campaignName && <p className="mt-1 text-xs text-danger">{errors.campaignName}</p>}
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block text-[var(--muted)]">Ad Group</span>
+            <input type="text" className={INPUT_CLS} value={form.adGroup} onChange={(e) => setField("adGroup", e.target.value)} placeholder="Optional" />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block text-[var(--muted)]">Ad Set</span>
+            <input type="text" className={INPUT_CLS} value={form.adSet} onChange={(e) => setField("adSet", e.target.value)} placeholder="Optional" />
+          </label>
+          <label className="block text-sm sm:col-span-2">
+            <span className="mb-1 block text-[var(--muted)]">Objective <span className="text-danger">*</span></span>
+            <select className={`${INPUT_CLS} ${errors.objective ? "border-danger" : ""}`} value={form.objective} onChange={(e) => setField("objective", e.target.value)}>
+              <option value="">Select objective…</option>
+              {CAMPAIGN_OBJECTIVES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            {errors.objective && <p className="mt-1 text-xs text-danger">{errors.objective}</p>}
           </label>
           <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Spend (₹)</span><input type="number" min="0" className={INPUT_CLS} value={form.spend} onChange={(e) => setField("spend", e.target.value)} /></label>
           <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Impressions</span><input type="number" min="0" step="1" className={INPUT_CLS} value={form.impressions} onChange={(e) => setField("impressions", e.target.value)} /></label>
           <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Clicks</span><input type="number" min="0" step="1" className={INPUT_CLS} value={form.clicks} onChange={(e) => setField("clicks", e.target.value)} /></label>
           <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Conversions</span><input type="number" min="0" step="1" className={INPUT_CLS} value={form.conversions} onChange={(e) => setField("conversions", e.target.value)} /></label>
-          <label className="block text-sm sm:col-span-2"><span className="mb-1 block text-[var(--muted)]">ROAS</span><input type="number" min="0" step="0.01" className={INPUT_CLS} value={form.roas} onChange={(e) => setField("roas", e.target.value)} /></label>
         </div>
         <div className="mt-5 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface-2)]">Cancel</button>
-          <button type="submit" disabled={submitting} className="rounded-lg bg-coral-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60">{submitting ? "Adding…" : "Add month"}</button>
+          <button type="submit" disabled={submitting} className="rounded-lg bg-coral-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60">{submitting ? "Adding…" : "Add Campaign"}</button>
         </div>
       </form>
     </Modal>
@@ -1084,40 +1123,46 @@ function CampaignsSection({ clientServiceId, serviceName }: CampaignsSectionProp
     }
   }
 
+  const objectiveLabel = (val: string) =>
+    CAMPAIGN_OBJECTIVES.find((o) => o.value === val)?.label ?? val;
+
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Campaigns — {serviceName}</p>
-        <button onClick={() => setShowAdd(true)} className="rounded-lg bg-coral-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600">+ Add month</button>
+        <button onClick={() => setShowAdd(true)} className="rounded-lg bg-coral-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600">+ Add Campaign</button>
       </div>
 
       {loading ? (
-        <div className="card overflow-hidden p-0"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]"><tr>{["Month","Spend","Impressions","Clicks","Conversions","ROAS",""].map((h) => (<th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">{h}</th>))}</tr></thead><tbody>{[0,1,2].map((i) => (<tr key={i} className="border-b border-[var(--border)] last:border-0">{[1,2,3,4,5,6,7].map((j) => (<td key={j} className="px-4 py-3"><div className="h-4 animate-pulse rounded bg-[var(--surface-2)]" /></td>))}</tr>))}</tbody></table></div></div>
+        <div className="card overflow-hidden p-0"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]"><tr>{["Campaign","Objective","Spend","Impressions","Clicks","Conversions",""].map((h) => (<th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">{h}</th>))}</tr></thead><tbody>{[0,1,2].map((i) => (<tr key={i} className="border-b border-[var(--border)] last:border-0">{[1,2,3,4,5,6,7].map((j) => (<td key={j} className="px-4 py-3"><div className="h-4 animate-pulse rounded bg-[var(--surface-2)]" /></td>))}</tr>))}</tbody></table></div></div>
       ) : !campaigns || campaigns.length === 0 ? (
-        <div className="card py-10 text-center"><p className="text-sm text-[var(--muted)]">No campaign data yet. Use &ldquo;Add month&rdquo; to log the first month.</p></div>
+        <div className="card py-10 text-center"><p className="text-sm text-[var(--muted)]">No campaigns yet. Click &ldquo;Add Campaign&rdquo; to log the first one.</p></div>
       ) : (
         <div className="card overflow-hidden p-0"><div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]">
               <tr>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Month</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Campaign</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Objective</th>
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Spend (₹)</th>
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Impressions</th>
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Clicks</th>
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Conversions</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">ROAS</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {campaigns.map((c) => (
                 <tr key={c.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)]">
-                  <td className="px-4 py-3 font-medium text-[var(--ink)]">{formatMonth(c.month)}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-[var(--ink)]">{c.campaignName}</p>
+                    {(c.adGroup || c.adSet) && <p className="text-xs text-[var(--muted)]">{[c.adGroup, c.adSet].filter(Boolean).join(" · ")}</p>}
+                  </td>
+                  <td className="px-4 py-3 text-[var(--muted)]">{objectiveLabel(c.objective)}</td>
                   <td className="px-4 py-3 text-[var(--muted)]">{formatCurrency(c.spend)}</td>
                   <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(c.impressions)}</td>
                   <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(c.clicks)}</td>
                   <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(c.conversions)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{Number(c.roas).toFixed(2)}×</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => handleDelete(c.id)} className="text-[var(--muted)] hover:text-danger" title="Delete campaign">×</button>
                   </td>
@@ -1305,6 +1350,24 @@ export default function ClientDetailPage() {
   const [clientStatusModal, setClientStatusModal] = useState<"SUSPENDED" | "ACTIVE" | "INACTIVE" | null>(null);
   const [serviceStatusSub, setServiceStatusSub] = useState<ClientService | null>(null);
 
+  const [editingAgreement, setEditingAgreement] = useState(false);
+  const [agreementText, setAgreementText] = useState("");
+  const [savingAgreement, setSavingAgreement] = useState(false);
+
+  async function saveAgreement() {
+    setSavingAgreement(true);
+    try {
+      await api.patch(`/clients/${id}/agreement`, { agreementDetails: agreementText || undefined }, getAccessToken());
+      setClient((prev) => prev ? { ...prev, agreementDetails: agreementText || null } : prev);
+      setEditingAgreement(false);
+      toastSuccess("Agreement details saved");
+    } catch (err) {
+      toastError("Failed to save agreement", err instanceof Error ? err.message : undefined);
+    } finally {
+      setSavingAgreement(false);
+    }
+  }
+
   const [reportMonth, setReportMonth] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
@@ -1475,6 +1538,53 @@ export default function ClientDetailPage() {
           <InfoRow label="Account manager" value={client.accountManager?.name ?? "—"} />
           <InfoRow label="Onboarded" value={formatDate(client.onboardedAt)} />
         </dl>
+      </div>
+
+      {/* Agreement Details */}
+      <div className="card">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Agreement Details</p>
+          {!editingAgreement && (
+            <button
+              onClick={() => { setAgreementText(client.agreementDetails ?? ""); setEditingAgreement(true); }}
+              className="text-xs font-medium text-brand-600 hover:text-brand-700"
+            >
+              {client.agreementDetails ? "Edit" : "Add"}
+            </button>
+          )}
+        </div>
+        {editingAgreement ? (
+          <div className="space-y-3">
+            <textarea
+              value={agreementText}
+              onChange={(e) => setAgreementText(e.target.value)}
+              maxLength={1000}
+              rows={4}
+              placeholder="e.g. MSA signed 12 Jun 2026, auto-renews annually. Retainer: ₹50,000/month."
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <p className="text-right text-xs text-[var(--muted)]">{agreementText.length}/1000</p>
+            <div className="flex gap-2">
+              <button
+                onClick={saveAgreement}
+                disabled={savingAgreement}
+                className="rounded-lg bg-brand-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:opacity-60"
+              >
+                {savingAgreement ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => setEditingAgreement(false)}
+                className="rounded-lg border border-[var(--border)] px-4 py-1.5 text-xs font-medium text-[var(--ink)] hover:bg-[var(--surface-2)]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--ink)] whitespace-pre-wrap">
+            {client.agreementDetails ?? <span className="text-[var(--muted)]">No agreement details added yet.</span>}
+          </p>
+        )}
       </div>
 
       {/* Services */}

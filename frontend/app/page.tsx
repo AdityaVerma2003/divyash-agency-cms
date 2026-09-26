@@ -2,24 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import ThemeToggle from "@/components/ThemeToggle";
-
-/* ── Scroll reveal hook ─────────────────────────────────────────────────────── */
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.12 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-  return { ref, visible };
-}
+import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
+import { useReveal } from "@/hooks/useReveal";
+import {
+  CLIENT_LOGOS_ROW_1,
+  CLIENT_LOGOS_ROW_2,
+  clientLogoSrc,
+  type ClientLogo,
+} from "@/lib/clients";
 
 /* ── Count-up hook ──────────────────────────────────────────────────────────── */
 function useCountUp(target: number, duration = 1400) {
@@ -236,16 +227,16 @@ const SERVICES = [
 ];
 
 const WHY = [
-  { num: "01", title: "Results, not reports", desc: "Every campaign is tied to a revenue or lead outcome you agreed on up front. No surprise KPI shuffles." },
-  { num: "02", title: "Dedicated account team", desc: "One consistent team who knows your business — no rotating freelancers, no call-centre hand-offs." },
-  { num: "03", title: "Transparent 28-day reports", desc: "On the 28th of every month you get a plain-English breakdown of what happened and what's next." },
+  { num: "01", title: "Real results, not reports.", desc: "Every campaign is tied to a revenue or lead outcome you agreed on up front. We measure what moves your business — not just what looks good in a deck." },
+  { num: "02", title: "Dedicated management team.", desc: "One consistent team who knows your brand, your market, and your goals — no rotating freelancers, no hand-offs, no starting over every quarter." },
+  { num: "03", title: "Transparent report & strategies.", desc: "Weekly updates and monthly plain-English reports tell you exactly what happened, why, and what we're doing next — no jargon, no surprises." },
 ];
 
 const PROCESS = [
-  { step: "01", title: "Audit", desc: "We map your digital presence, competitors, and quick wins." },
-  { step: "02", title: "Strategy", desc: "A custom growth plan aligned to your revenue goals." },
-  { step: "03", title: "Execute", desc: "Campaigns go live across your chosen channels." },
-  { step: "04", title: "Grow", desc: "Monitor, optimise, and report — then raise the bar." },
+  { step: "01", title: "Audit",    desc: "We map your digital presence, competitors, and quick wins.", accent: "#6366F1" },
+  { step: "02", title: "Strategy", desc: "A custom growth plan aligned to your revenue goals.",         accent: "#2DBFA0" },
+  { step: "03", title: "Execute",  desc: "Campaigns go live across your chosen channels.",              accent: "#F5883C" },
+  { step: "04", title: "Grow",     desc: "Monitor, optimise, and report — then raise the bar.",         accent: "#5B7CF7" },
 ];
 
 /* ── Hero Dashboard Mockup ──────────────────────────────────────────────────── */
@@ -315,84 +306,6 @@ function HeroDashboardMockup() {
 }
 
 /* ── Nav ────────────────────────────────────────────────────────────────────── */
-function Nav({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 24);
-    window.addEventListener("scroll", fn, { passive: true });
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-
-  return (
-    <header className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-      scrolled ? "bg-[var(--surface)]/90 shadow-sm backdrop-blur-md border-b border-[var(--border)]" : "bg-transparent"
-    }`}>
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.webp" alt="Divyash Digital" className="h-8 w-8 object-contain flex-shrink-0" />
-          <span className="font-display font-bold text-lg text-[var(--ink)]">Divyash Digital</span>
-        </Link>
-
-        <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-[var(--muted)]">
-          <Link href="/services" className="hover:text-coral-500 transition-colors">Services</Link>
-          <Link href="/work"     className="hover:text-coral-500 transition-colors">Our Work</Link>
-          <Link href="/blog"     className="hover:text-coral-500 transition-colors">Blog</Link>
-          <Link href="/contact"  className="hover:text-coral-500 transition-colors">Contact</Link>
-        </nav>
-
-        <div className="hidden md:flex items-center gap-3">
-          <ThemeToggle />
-          <Link href="/login" className="text-sm font-medium text-[var(--muted)] hover:text-[var(--ink)] transition-colors px-3 py-1.5">
-            Sign in
-          </Link>
-          <Link href="/contact" className="rounded-full bg-coral-500 px-5 py-2 text-sm font-semibold text-white hover:bg-coral-600 transition-colors">
-            Free audit →
-          </Link>
-        </div>
-
-        <div className="flex md:hidden items-center gap-2">
-          <ThemeToggle />
-          <button onClick={() => setOpen(!open)} aria-label="Toggle menu"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--muted)]">
-            {open ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {open && (
-        <div className="md:hidden border-t border-[var(--border)] bg-[var(--surface)] px-5 py-4 space-y-4">
-          {[
-            { label: "Services", href: "/services" },
-            { label: "Our Work", href: "/work" },
-            { label: "Blog", href: "/blog" },
-            { label: "Contact", href: "/contact" },
-          ].map(({ label, href }) => (
-            <Link key={href} href={href} onClick={() => setOpen(false)}
-              className="block text-sm font-medium text-[var(--muted)] hover:text-coral-500">
-              {label}
-            </Link>
-          ))}
-          <Link href="/login" className="block text-sm font-medium text-[var(--muted)]" onClick={() => setOpen(false)}>
-            Sign in
-          </Link>
-          <Link href="/contact" onClick={() => setOpen(false)}
-            className="block rounded-full bg-coral-500 px-5 py-2.5 text-center text-sm font-semibold text-white">
-            Free audit →
-          </Link>
-        </div>
-      )}
-    </header>
-  );
-}
 
 /* ── Hero ───────────────────────────────────────────────────────────────────── */
 function Hero() {
@@ -420,7 +333,7 @@ function Hero() {
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-coral-100 bg-coral-50 dark:border-coral-500/20 dark:bg-coral-500/10 px-4 py-1.5">
             <span className="h-2 w-2 rounded-full bg-coral-500 animate-pulse" />
             <span className="text-xs font-semibold text-coral-600 dark:text-coral-400 uppercase tracking-wide">
-              Delhi's Digital Growth Partner
+              #1 Digital Growth Partner
             </span>
           </div>
 
@@ -431,7 +344,7 @@ function Hero() {
           </h1>
 
           <p className="mt-6 text-base leading-relaxed text-[var(--muted)] md:text-lg">
-            Measurable results for Delhi businesses serious about growth. SEO, Ads, Social
+            Measurable results for businesses serious about growth. SEO, Ads, Social
             Media and Web Design — all under one roof, all tied to revenue.
           </p>
 
@@ -447,7 +360,7 @@ function Hero() {
           </div>
 
           <p className="mt-8 text-xs text-[var(--muted)]">
-            Trusted by <strong className="text-[var(--ink)]">150+</strong> businesses across India
+            Trusted by <strong className="text-[var(--ink)]">180+</strong> businesses across India
           </p>
         </div>
 
@@ -638,7 +551,7 @@ function ServiceCard({ svc, delay }: { svc: typeof SERVICES[0]; delay: string })
 
 /* ── Stats ──────────────────────────────────────────────────────────────────── */
 function StatsSection() {
-  const { ref: r1, count: c1 } = useCountUp(150);
+  const { ref: r1, count: c1 } = useCountUp(180);
   const { ref: r2, count: c2 } = useCountUp(50);
   const { ref: r3, count: c3 } = useCountUp(100);
   const { ref: r4, count: c4 } = useCountUp(6);
@@ -698,7 +611,7 @@ function WhySection() {
         <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""} mb-14 text-center`}>
           <p className="section-label mb-3">Why choose us</p>
           <h2 className="font-display text-3xl font-bold text-[var(--ink)] md:text-4xl">
-            Built for businesses that<br className="hidden sm:block" /> measure everything
+            Marketing Strategies Built For Businesses<br className="hidden sm:block" /> That Measures Everything.
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
@@ -712,17 +625,96 @@ function WhySection() {
 }
 
 /* ── Process ────────────────────────────────────────────────────────────────── */
-function ProcessStep({ p, delay }: { p: typeof PROCESS[0]; delay: string }) {
-  const { ref, visible } = useReveal();
+/* Hand-drawn connector between steps — curves up or down for a sketched feel */
+function DoodleConnector({ down = false }: { down?: boolean }) {
   return (
-    <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${delay} ${visible ? "visible" : ""} text-center`}>
-      <div className="relative mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border-2 border-coral-500 bg-[var(--surface)] text-coral-500">
-        <span className="font-display text-sm font-bold">{p.step}</span>
-        {/* Pulse ring */}
-        <div className="absolute inset-0 rounded-full border-2 border-coral-500 opacity-20 animate-ping" />
+    <svg width="110" height="48" viewBox="0 0 110 48" fill="none" aria-hidden>
+      <path
+        d={down ? "M4 16 C 30 44, 74 44, 100 24" : "M4 32 C 30 4, 74 4, 100 24"}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="5 6"
+      />
+      <path
+        d="M92 17 L 101 24 L 92 31"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const STEP_ICONS = [DoodleMagnifier, DoodleTarget, DoodleRocket, DoodleChart];
+
+function ProcessStep({ p, index, delay }: { p: typeof PROCESS[0]; index: number; delay: string }) {
+  const { ref, visible } = useReveal();
+  const Icon = STEP_ICONS[index];
+  const isLast = index === PROCESS.length - 1;
+
+  return (
+    <div
+      ref={ref as React.RefObject<HTMLDivElement>}
+      className={`reveal ${delay} ${visible ? "visible" : ""} group relative text-center`}
+    >
+      {/* Connector to the next step (desktop only) */}
+      {!isLast && (
+        <div
+          className="pointer-events-none absolute -right-4 top-4 z-10 hidden translate-x-1/2 text-[var(--muted)] opacity-30 transition-opacity duration-500 group-hover:opacity-60 md:block"
+          aria-hidden
+        >
+          <DoodleConnector down={index % 2 === 1} />
+        </div>
+      )}
+
+      {/* Icon medallion */}
+      <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center">
+        {/* Rotating dashed orbit */}
+        <svg
+          className="absolute inset-0 h-full w-full animate-spin-slow opacity-40 transition-opacity duration-300 group-hover:opacity-80"
+          viewBox="0 0 80 80"
+          fill="none"
+          aria-hidden
+        >
+          <circle
+            cx="40" cy="40" r="37"
+            stroke={p.accent}
+            strokeWidth="1.5"
+            strokeDasharray="4 7"
+            strokeLinecap="round"
+          />
+        </svg>
+
+        {/* Solid disc */}
+        <div
+          className="relative flex h-14 w-14 items-center justify-center rounded-full border-2 bg-[var(--surface)] transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg motion-reduce:group-hover:scale-100"
+          style={{ borderColor: p.accent, color: p.accent }}
+        >
+          <span className="transition-transform duration-500 group-hover:rotate-[10deg]">
+            <Icon size={24} />
+          </span>
+        </div>
+
+        {/* Step number badge */}
+        <span
+          className="absolute -right-0.5 -top-0.5 flex h-7 w-7 items-center justify-center rounded-full font-display text-[11px] font-bold text-white shadow-sm"
+          style={{ backgroundColor: p.accent }}
+        >
+          {p.step}
+        </span>
       </div>
-      <h3 className="mb-1 font-display text-lg font-semibold text-[var(--ink)]">{p.title}</h3>
-      <p className="text-sm leading-relaxed text-[var(--muted)]">{p.desc}</p>
+
+      <h3 className="mb-1.5 font-display text-lg font-semibold text-[var(--ink)]">{p.title}</h3>
+      <p className="mx-auto max-w-[240px] text-sm leading-relaxed text-[var(--muted)]">{p.desc}</p>
+
+      {/* Underline that grows on hover */}
+      <span
+        className="mx-auto mt-4 block h-0.5 w-0 rounded-full transition-all duration-500 group-hover:w-12"
+        style={{ backgroundColor: p.accent }}
+        aria-hidden
+      />
     </div>
   );
 }
@@ -731,21 +723,47 @@ function ProcessSection() {
   const { ref, visible } = useReveal();
   return (
     <section id="process" className="relative py-20 md:py-28 bg-[var(--surface-2)] overflow-hidden">
-      {/* Background doodles */}
-      <div className="pointer-events-none absolute top-8 left-1/2 text-coral-500 opacity-[0.04]" aria-hidden><DoodleHashtag size={68} /></div>
-      <div className="pointer-events-none absolute bottom-8 right-8 text-[#2DBFA0] opacity-[0.04]" aria-hidden><DoodleCursor size={60} /></div>
+      {/* Floating background doodles */}
+      <div className="pointer-events-none absolute left-[8%] top-12 text-coral-500 opacity-[0.06] animate-float-slow" aria-hidden><DoodleHashtag size={54} /></div>
+      <div className="pointer-events-none absolute right-[10%] top-24 text-[#F5883C] opacity-[0.07] animate-float" aria-hidden><DoodleStar size={38} /></div>
+      <div className="pointer-events-none absolute bottom-16 left-[14%] text-[#5B7CF7] opacity-[0.06] animate-float-slower" aria-hidden><DoodleLightning size={44} /></div>
+      <div className="pointer-events-none absolute bottom-10 right-8 text-[#2DBFA0] opacity-[0.06] animate-float-slow" aria-hidden><DoodleCursor size={60} /></div>
+      <div className="pointer-events-none absolute right-[28%] bottom-24 text-coral-500 opacity-[0.05] animate-float" aria-hidden><DoodleAt size={34} /></div>
 
-      <div className="mx-auto max-w-6xl px-5">
-        <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""} mb-14 text-center`}>
+      <div className="relative mx-auto max-w-6xl px-5">
+        <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""} mb-16 text-center`}>
           <p className="section-label mb-3">How it works</p>
-          <h2 className="font-display text-3xl font-bold text-[var(--ink)] md:text-4xl">
+          <h2 className="font-display text-3xl font-bold tracking-tight text-[var(--ink)] md:text-4xl">
             Our 4-step approach
           </h2>
+
+          {/* Hand-drawn underline that draws itself in on reveal */}
+          <svg
+            className="mx-auto mt-3 h-3 w-48 text-coral-500"
+            viewBox="0 0 200 12"
+            fill="none"
+            aria-hidden
+          >
+            <path
+              d="M3 8C40 2 80 2 100 6s60 4 97-2"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray="260"
+              className={visible ? "animate-draw" : ""}
+              style={visible ? undefined : { strokeDashoffset: 260 }}
+            />
+          </svg>
+
+          <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-[var(--muted)]">
+            No black boxes. Every engagement runs through the same four stages, so
+            you always know where things stand.
+          </p>
         </div>
-        <div className="relative grid grid-cols-1 gap-8 md:grid-cols-4">
-          <div className="pointer-events-none absolute left-0 right-0 top-6 hidden h-px bg-gradient-to-r from-transparent via-coral-300 to-transparent opacity-50 md:block" aria-hidden />
+
+        <div className="relative grid grid-cols-1 gap-12 sm:grid-cols-2 md:grid-cols-4 md:gap-8">
           {PROCESS.map((p, i) => (
-            <ProcessStep key={p.step} p={p} delay={`reveal-delay-${i + 1}`} />
+            <ProcessStep key={p.step} p={p} index={i} delay={`reveal-delay-${i + 1}`} />
           ))}
         </div>
       </div>
@@ -757,49 +775,176 @@ function ProcessSection() {
 function WorkTeaserSection() {
   const { ref, visible } = useReveal();
   const items = [
-    { title: "ROAS: 4.2×", sub: "E-commerce brand — Google Ads", color: "bg-coral-500" },
-    { title: "SEO: ↑ 234%", sub: "B2B SaaS — Organic traffic", color: "bg-[#2DBFA0]" },
-    { title: "Leads: +1,240", sub: "Real estate — Meta Ads", color: "bg-[#5B7CF7]" },
+    {
+      metric: "4.2×",
+      label: "Return on ad spend",
+      sub: "E-commerce brand — Google Ads",
+      detail: "₹18L ad spend turned into ₹76L in tracked revenue.",
+      period: "6 months",
+      color: "bg-coral-500",
+    },
+    {
+      metric: "↑ 234%",
+      label: "Organic traffic",
+      sub: "B2B SaaS — SEO & content",
+      detail: "12K → 40K monthly sessions with 60+ page-one keywords.",
+      period: "9 months",
+      color: "bg-[#2DBFA0]",
+    },
+    {
+      metric: "+1,240",
+      label: "Qualified leads",
+      sub: "Real estate — Meta Ads",
+      detail: "₹340 average cost per lead at a 31% qualification rate.",
+      period: "4 months",
+      color: "bg-[#5B7CF7]",
+    },
   ];
+
   return (
     <section className="py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-5">
-        <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""} mb-12 flex items-end justify-between gap-4`}>
-          <div>
+
+        {/* Header */}
+        <div
+          ref={ref as React.RefObject<HTMLDivElement>}
+          className={`reveal ${visible ? "visible" : ""} mb-12 flex flex-col gap-6 md:mb-14 md:flex-row md:items-end md:justify-between`}
+        >
+          <div className="max-w-xl">
             <p className="section-label mb-3">Our work</p>
-            <h2 className="font-display text-3xl font-bold text-[var(--ink)] md:text-4xl">
+            <h2 className="font-display text-3xl font-bold tracking-tight text-[var(--ink)] md:text-4xl">
               Numbers that speak
             </h2>
+            <p className="mt-4 text-base leading-relaxed text-[var(--muted)]">
+              We report on revenue, pipeline and cost per acquisition — not impressions.
+              Here are three recent engagements and what they actually moved.
+            </p>
           </div>
-          <Link href="/work" className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-coral-500 hover:text-coral-600 transition-colors">
+
+          <Link
+            href="/work"
+            className="inline-flex flex-shrink-0 items-center gap-1.5 self-start text-sm font-semibold text-coral-500 transition-colors hover:text-coral-600 md:self-auto md:pb-1"
+          >
             View all case studies →
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        {/* Result cards */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item, i) => (
             <WorkCard key={i} item={item} delay={`reveal-delay-${i + 1}`} />
           ))}
         </div>
 
-        <div className="mt-8 text-center sm:hidden">
-          <Link href="/work" className="text-sm font-semibold text-coral-500">View all case studies →</Link>
+      </div>
+    </section>
+  );
+}
+
+/* ── Trusted by / client logo marquee ───────────────────────────────────────── */
+
+function ClientLogoItem({ logo }: { logo: ClientLogo }) {
+  return (
+    <div className="flex h-20 w-36 flex-shrink-0 items-center justify-center px-4 sm:h-24 sm:w-44">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={clientLogoSrc(logo.file)}
+        alt={logo.name}
+        title={logo.name}
+        loading="lazy"
+        className="max-h-full max-w-full object-contain transition-transform duration-300 hover:scale-105 motion-reduce:hover:scale-100"
+      />
+    </div>
+  );
+}
+
+function LogoMarquee({ logos, reverse = false }: { logos: ClientLogo[]; reverse?: boolean }) {
+  return (
+    <div className="group relative flex overflow-hidden">
+      {/* Track is duplicated so the -50% keyframe lands on an identical frame */}
+      <div
+        className={`flex w-max ${reverse ? "animate-marquee-slow" : "animate-marquee"} group-hover:[animation-play-state:paused]`}
+        style={reverse ? { animationDirection: "reverse" } : undefined}
+      >
+        {[...logos, ...logos].map((logo, i) => (
+          <ClientLogoItem key={`${logo.name}-${i}`} logo={logo} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TrustedBySection() {
+  const { ref, visible } = useReveal();
+  return (
+    <section className="overflow-hidden py-20 md:py-28">
+      <div
+        ref={ref as React.RefObject<HTMLDivElement>}
+        className={`reveal ${visible ? "visible" : ""} mx-auto mb-14 max-w-3xl px-5 text-center md:mb-16`}
+      >
+        <h2 className="font-display text-3xl font-bold leading-tight tracking-tight text-[var(--ink)] md:text-4xl">
+          Trusted by businesses
+          <br />
+          <span className="font-semibold">big</span>{" "}
+          <span className="text-4xl font-extrabold md:text-5xl">and</span>{" "}
+          <span className="text-2xl font-medium md:text-3xl">small,</span>{" "}
+          <span className="text-coral-500">everywhere!</span>
+        </h2>
+      </div>
+
+      {/* Edge fade so logos dissolve rather than clip at the viewport edges */}
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-[var(--page-bg)] to-transparent md:w-32" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[var(--page-bg)] to-transparent md:w-32" />
+
+        <div className="space-y-6 md:space-y-8">
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_1} />
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_2} reverse />
         </div>
       </div>
     </section>
   );
 }
 
-function WorkCard({ item, delay }: { item: { title: string; sub: string; color: string }; delay: string }) {
+interface WorkItem {
+  metric: string;
+  label: string;
+  sub: string;
+  detail: string;
+  period: string;
+  color: string;
+}
+
+function WorkCard({ item, delay }: { item: WorkItem; delay: string }) {
   const { ref, visible } = useReveal();
   return (
-    <div ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${delay} ${visible ? "visible" : ""} group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/30 motion-reduce:translate-y-0`}>
-      <div className={`mb-4 inline-flex h-10 w-10 rounded-xl ${item.color} items-center justify-center`}>
-        <DoodleBarChart size={20} />
+    <div
+      ref={ref as React.RefObject<HTMLDivElement>}
+      className={`reveal ${delay} ${visible ? "visible" : ""} group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-7 transition-all hover:-translate-y-1 hover:border-coral-500/30 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/30 motion-reduce:translate-y-0`}
+    >
+      {/* Icon + timeframe */}
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${item.color}`}>
+          <DoodleBarChart size={20} />
+        </div>
+        <span className="rounded-full border border-[var(--border)] px-2.5 py-1 text-[11px] font-medium text-[var(--muted)]">
+          {item.period}
+        </span>
       </div>
-      <p className="font-display text-2xl font-extrabold text-[var(--ink)]">{item.title}</p>
-      <p className="mt-1 text-sm text-[var(--muted)]">{item.sub}</p>
+
+      {/* Headline metric */}
+      <p className="font-display text-3xl font-extrabold leading-none tracking-tight text-[var(--ink)]">
+        {item.metric}
+      </p>
+      <p className="mt-2 text-sm font-semibold text-[var(--ink)]">{item.label}</p>
+
+      {/* Supporting detail */}
+      <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--muted)]">{item.detail}</p>
+
+      {/* Footer */}
+      <p className="mt-5 border-t border-[var(--border)] pt-4 text-xs font-medium text-[var(--muted)]">
+        {item.sub}
+      </p>
     </div>
   );
 }
@@ -1022,7 +1167,7 @@ function CtaSection() {
             </Link>
           </div>
 
-          <p className="mt-6 text-xs opacity-60">Delhi-based · Mon – Sat, 10 am – 6 pm IST</p>
+          <p className="mt-6 text-xs opacity-60"> Mon – Sat, 10 am – 6 pm IST</p>
         </div>
       </div>
     </section>
@@ -1030,64 +1175,19 @@ function CtaSection() {
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────────────── */
-function Footer() {
-  return (
-    <footer className="bg-[#1C1410] text-white/70">
-      <div className="mx-auto max-w-6xl px-5 py-12">
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4">
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-2 mb-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.webp" alt="" className="h-7 w-7 object-contain flex-shrink-0" aria-hidden />
-              <span className="font-display font-bold text-base text-white">Divyash Digital</span>
-            </div>
-            <p className="text-sm leading-relaxed max-w-xs">
-              Delhi's growth partner for businesses that want measurable results — not just deliverables.
-            </p>
-            <p className="mt-4 text-xs">info@divyashdigital.co.in · +91 88103 76026</p>
-          </div>
-
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">Services</p>
-            <ul className="space-y-2 text-sm">
-              {["SEO", "Social Media", "Google Ads", "Meta Ads", "Web Design", "Graphic Design"].map((s) => (
-                <li key={s}><Link href="/services" className="hover:text-coral-400 transition-colors">{s}</Link></li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">Company</p>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/work"    className="hover:text-coral-400 transition-colors">Our Work</Link></li>
-              <li><Link href="/blog"    className="hover:text-coral-400 transition-colors">Blog</Link></li>
-              <li><Link href="/contact" className="hover:text-coral-400 transition-colors">Contact</Link></li>
-              <li><Link href="/login"   className="hover:text-coral-400 transition-colors">Client Portal</Link></li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="mt-10 border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/30">
-          <p>© {new Date().getFullYear()} Divyash Digital. All rights reserved.</p>
-          <p>Delhi, India</p>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 /* ── Page ────────────────────────────────────────────────────────────────────── */
 export default function HomePage() {
-  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div className="min-h-screen bg-[var(--page-bg)] text-[var(--ink)]">
-      <Nav open={menuOpen} setOpen={setMenuOpen} />
+      <Nav />
       <Hero />
       <ServicesSection />
       <StatsSection />
       <WhySection />
       <ProcessSection />
       <WorkTeaserSection />
+      <TrustedBySection />
       <BlogSection />
       <CtaSection />
       <Footer />

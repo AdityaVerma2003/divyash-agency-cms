@@ -1,11 +1,20 @@
 export type Role = "SUPER_ADMIN" | "ACCOUNT_MANAGER" | "CLIENT";
 
+export type OnboardingStatus = "INVITED" | "PENDING" | "COMPLETE";
+
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role: Role;
   clientId: string | null;
+  onboardingStatus: OnboardingStatus;
+  photoUrl?: string | null;
+  mobile?: string | null;
+  address?: string | null;
+  designation?: string | null;
+  socialLinks?: string | null;
+  bankDetails?: string | null;
 }
 
 export interface Client {
@@ -16,6 +25,7 @@ export interface Client {
   phone?: string | null;
   gstin?: string | null;
   address?: string | null;
+  agreementDetails?: string | null;
   status: "ACTIVE" | "SUSPENDED" | "INACTIVE";
   suspensionReason?: string | null;
   suspensionNotes?: string | null;
@@ -109,12 +119,14 @@ export interface Post {
 export interface Campaign {
   id: string;
   clientServiceId: string;
-  month: string;
+  campaignName: string;
+  adGroup?: string | null;
+  adSet?: string | null;
+  objective: string;
   spend: number;
   impressions: number;
   clicks: number;
   conversions: number;
-  roas: number;
   createdAt: string;
 }
 
@@ -223,6 +235,9 @@ export interface BlogPost {
   publishedAt?: string | null;
   metaTitle?: string | null;
   metaDescription?: string | null;
+  primaryKeyword?: string | null;
+  keywords?: string | null;
+  faqSchema?: string | null;
   createdAt: string;
   updatedAt: string;
 }

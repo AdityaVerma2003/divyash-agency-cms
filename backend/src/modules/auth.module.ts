@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { OnboardingStatus, Role } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jwt";
@@ -165,9 +166,21 @@ router.post(
     if (!tokenMatches) throw ApiError.badRequest("Reset link is invalid or has expired");
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    // If this is a team member who was INVITED (first-time password set), advance to PENDING
+    const newOnboardingStatus =
+      user.role !== Role.CLIENT && user.onboardingStatus === OnboardingStatus.INVITED
+        ? OnboardingStatus.PENDING
+        : undefined;
+
     await prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash, resetToken: null, resetTokenExpiresAt: null },
+      data: {
+        passwordHash,
+        resetToken: null,
+        resetTokenExpiresAt: null,
+        ...(newOnboardingStatus && { onboardingStatus: newOnboardingStatus }),
+      },
     });
 
     res.json({ message: "Password updated successfully. You can now log in." });
@@ -187,7 +200,20 @@ router.get(
   asyncHandler(async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.userId },
-      select: { id: true, name: true, email: true, role: true, clientId: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        clientId: true,
+        onboardingStatus: true,
+        photoUrl: true,
+        mobile: true,
+        address: true,
+        designation: true,
+        socialLinks: true,
+        bankDetails: true,
+      },
     });
     if (!user) throw ApiError.notFound("User not found");
     res.json(user);

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import ThemeToggle from "@/components/ThemeToggle";
+import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 const LIMIT = 9;
@@ -127,24 +128,9 @@ export default function BlogPage() {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--page-bg)" }}>
-      {/* Nav */}
-      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.webp" alt="Divyash Digital" className="h-7 w-7 object-contain" />
-            <span className="font-display font-bold text-[var(--ink)]">Divyash Digital</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <Link href="/contact" className="hidden sm:inline-flex rounded-full bg-coral-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-coral-600 transition-colors">
-              Free audit →
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Nav />
 
-      <main className="mx-auto max-w-6xl px-5 py-12">
+      <main className="mx-auto max-w-6xl px-5 pt-28 pb-12">
         {/* Hero */}
         <div className="mb-10 text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-coral-100 bg-coral-50 dark:border-coral-500/20 dark:bg-coral-500/10 px-4 py-1.5">
@@ -227,17 +213,7 @@ export default function BlogPage() {
         )}
       </main>
 
-      {/* Simple footer */}
-      <footer className="mt-16 border-t border-[var(--border)] py-8">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5">
-          <span className="text-sm text-[var(--muted)]">© {new Date().getFullYear()} Divyash Digital</span>
-          <div className="flex gap-5 text-sm text-[var(--muted)]">
-            <Link href="/" className="hover:text-coral-500 transition-colors">Home</Link>
-            <Link href="/services" className="hover:text-coral-500 transition-colors">Services</Link>
-            <Link href="/contact" className="hover:text-coral-500 transition-colors">Contact</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

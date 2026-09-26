@@ -1136,6 +1136,15 @@ export default function ClientDashboardPage() {
             </div>
           )}
 
+          {/* Agreement details */}
+          {clientInfo?.agreementDetails && (
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <p className="section-label mb-2">Agreement</p>
+              <p className="text-sm text-[var(--ink)] whitespace-pre-wrap leading-relaxed">{clientInfo.agreementDetails}</p>
+              <p className="mt-3 text-xs text-[var(--muted)]">For a copy of your signed agreement, please contact us.</p>
+            </div>
+          )}
+
           {/* Support card */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
             <p className="section-label mb-3">Need help?</p>

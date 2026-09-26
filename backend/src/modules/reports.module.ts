@@ -80,7 +80,7 @@ router.get(
       prisma.campaign.findMany({
         where: {
           clientService: { clientId },
-          month: { gte: periodStart, lte: periodEnd },
+          createdAt: { gte: periodStart, lte: periodEnd },
         },
         include: { clientService: { include: { service: true } } },
       }),
@@ -113,9 +113,7 @@ router.get(
     const totalImpressions = campaigns.reduce((s, c) => s + c.impressions, 0);
     const totalClicks      = campaigns.reduce((s, c) => s + c.clicks, 0);
     const totalConversions = campaigns.reduce((s, c) => s + c.conversions, 0);
-    const avgROAS          = campaigns.length
-      ? campaigns.reduce((s, c) => s + Number(c.roas), 0) / campaigns.length
-      : 0;
+    const avgROAS = 0; // roas field removed from Campaign model
 
     // Derived lead metrics
     const totalLeads   = leads.reduce((s, l) => s + l.count, 0);

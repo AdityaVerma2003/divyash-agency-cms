@@ -81,17 +81,48 @@ Defined in `frontend/tailwind.config.ts`: `ink` (#101828 dark), `brand-{50,100,5
 - `DATABASE_URL` — PostgreSQL connection string
 - `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`
 - `JWT_ACCESS_EXPIRES_IN` (15m) / `JWT_REFRESH_EXPIRES_IN` (7d)
-- `CLIENT_ORIGIN` — CORS origin (e.g. `http://localhost:3000`)
-- `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` — not yet implemented
-- `SMTP_*` — not yet implemented
+- `CLIENT_ORIGIN` — comma-separated CORS origins (e.g. `http://localhost:3000`)
+- `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` — Razorpay payment gateway
+- `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` — email sending (console fallback when unconfigured)
+- `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — blog cover image uploads
 
 **Frontend** (`.env.local`):
 - `NEXT_PUBLIC_API_URL=http://localhost:4000/api`
 
-## Planned but Not Yet Built
+## Key Implemented Features
 
-- Razorpay checkout and webhook handling
-- Reminder cron jobs and email templates
-- Post/campaign data-entry UI
-- PDF invoice generation
-- Performance charts (Recharts is installed but unused)
+### Razorpay Payment Flow (`backend/src/modules/razorpay.module.ts`)
+- `POST /api/razorpay/orders` — creates a Razorpay order for an invoice's outstanding balance (amount in paise)
+- `POST /api/razorpay/verify` — 9-step server-side verification: HMAC-SHA256 signature check, idempotency guard with cross-invoice validation, server-to-server payment fetch, order notes match, payment status check, amount validation (±₹1 tolerance), then records payment
+- `POST /api/razorpay/webhook` — handles `payment.captured` events with webhook secret HMAC validation and idempotency skip
+- Shared `recordRazorpayPayment` helper used by both verify and webhook handlers
+- **Not yet built**: frontend Razorpay checkout modal/button in the client invoice view
+
+### Cron Jobs & Automated Billing (`backend/src/lib/cron.ts`, `backend/src/lib/billing.ts`)
+- `0 9 1 * *` — monthly invoice generation on the 1st of each month at 9am; groups active MONTHLY subscriptions by client, skips if already billed for the period
+- `0 8 * * *` — daily invoice reminders at 8am; marks overdue invoices, sends PRE_DUE (3 days before), DUE (on due date), OVERDUE emails with deduplication via `ReminderLog`
+- `5 8 * * *` — daily contract expiry check at 8:05am; notifies on services ending within 14 days
+- Manual triggers via `POST /api/billing/run` and `POST /api/billing/send-reminders` (SUPER_ADMIN only)
+
+### Email (`backend/src/lib/email.ts`, `backend/src/lib/emailTemplates.ts`)
+- SMTP transporter supporting port 465 (SSL) and 587 (STARTTLS); falls back to console logging when SMTP env vars are not set
+- `paymentReceiptHtml` / `paymentReceiptSubject` — branded HTML payment receipt
+- `invoiceReminderHtml` / `reminderSubject` — styled reminder emails with PRE_DUE (amber), DUE (amber), OVERDUE (red) themes
+
+### PDF Generation (PDFKit)
+- **Invoice PDF**: `GET /api/invoices/:id/pdf` — dynamic-height PDFKit document with line items, payment history, balance due
+- **Monthly Performance Report**: `GET /api/reports/:clientId/pdf?month=YYYY-MM` — active services table, billing summary KPI grid, social media performance, ad campaign performance (ROAS, CTR, cost/conv), leads & revenue; logs to `Report` table
+
+### Blog (Cloudinary + Multer)
+- Public router at `/api/blog-posts` — paginated published posts with optional `?category=` filter; per-post cache headers
+- Admin router at `/api/admin/blog-posts` — full CRUD (create draft, update, publish, delete); auto-generated unique slugs
+- `POST /api/admin/blog-posts/:id/cover-image` — multer memory storage → Cloudinary upload (WebP auto-format, 1200×630 crop limit); replaces old image on update
+
+### Data-Entry UI (admin client detail page)
+- **Posts** (`frontend/app/admin/clients/[id]/page.tsx`): table with AddPostModal (platform, date, reach/likes/comments/shares, optional URL) and delete
+- **Campaigns**: table with AddCampaignModal (month, spend, impressions, clicks, conversions, ROAS) and delete
+- **Leads**: table with AddLeadModal (month, count, revenue attributed) and delete
+
+### Performance Charts (Recharts)
+- `AreaChart` — 6-month reach trend on client dashboard (`frontend/app/client/dashboard/page.tsx`)
+- `BarChart` — 6-month leads trend on client dashboard

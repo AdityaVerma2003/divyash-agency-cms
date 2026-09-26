@@ -27,20 +27,47 @@ export default function BlogPostForm({ initialPost }: Props) {
   const { success, error: toastError } = useToast();
   const isEdit = !!initialPost;
 
-  const [title, setTitle]           = useState(initialPost?.title ?? "");
-  const [slug, setSlug]             = useState(initialPost?.slug ?? "");
-  const [excerpt, setExcerpt]       = useState(initialPost?.excerpt ?? "");
-  const [content, setContent]       = useState(initialPost?.contentMarkdown ?? "");
-  const [category, setCategory]     = useState(initialPost?.category ?? "");
-  const [coverUrl, setCoverUrl]     = useState(initialPost?.coverImageUrl ?? "");
-  const [metaTitle, setMetaTitle]   = useState(initialPost?.metaTitle ?? "");
-  const [metaDesc, setMetaDesc]     = useState(initialPost?.metaDescription ?? "");
+  const [title, setTitle]                   = useState(initialPost?.title ?? "");
+  const [slug, setSlug]                     = useState(initialPost?.slug ?? "");
+  const [excerpt, setExcerpt]               = useState(initialPost?.excerpt ?? "");
+  const [content, setContent]               = useState(initialPost?.contentMarkdown ?? "");
+  const [category, setCategory]             = useState(initialPost?.category ?? "");
+  const [coverUrl, setCoverUrl]             = useState(initialPost?.coverImageUrl ?? "");
+  const [metaTitle, setMetaTitle]           = useState(initialPost?.metaTitle ?? "");
+  const [metaDesc, setMetaDesc]             = useState(initialPost?.metaDescription ?? "");
+  const [primaryKeyword, setPrimaryKeyword] = useState(initialPost?.primaryKeyword ?? "");
+  const [keywords, setKeywords]             = useState(initialPost?.keywords ?? "");
+  const [faqPairs, setFaqPairs]             = useState<{ q: string; a: string }[]>(() => {
+    if (!initialPost?.faqSchema) return [];
+    try {
+      const parsed = JSON.parse(initialPost.faqSchema) as { name?: string; acceptedAnswer?: { text?: string } }[];
+      return parsed.map((item) => ({ q: item.name ?? "", a: item.acceptedAnswer?.text ?? "" }));
+    } catch {
+      return [];
+    }
+  });
   const [slugManual, setSlugManual] = useState(!!initialPost);
   const [seoOpen, setSeoOpen]       = useState(false);
   const [saving, setSaving]         = useState(false);
   const [uploading, setUploading]   = useState(false);
   const [postId, setPostId]         = useState<string | null>(initialPost?.id ?? null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function faqToJson() {
+    const filled = faqPairs.filter((p) => p.q.trim() && p.a.trim());
+    if (!filled.length) return undefined;
+    return JSON.stringify(filled.map((p) => ({
+      "@type": "Question",
+      name: p.q.trim(),
+      acceptedAnswer: { "@type": "Answer", text: p.a.trim() },
+    })));
+  }
+
+  function addFaqPair() { setFaqPairs((prev) => [...prev, { q: "", a: "" }]); }
+  function removeFaqPair(i: number) { setFaqPairs((prev) => prev.filter((_, idx) => idx !== i)); }
+  function updateFaqPair(i: number, field: "q" | "a", val: string) {
+    setFaqPairs((prev) => prev.map((p, idx) => idx === i ? { ...p, [field]: val } : p));
+  }
 
   // Auto-fill slug from title when creating
   useEffect(() => {
@@ -56,7 +83,11 @@ export default function BlogPostForm({ initialPost }: Props) {
     ...(coverUrl && { coverImageUrl: coverUrl }),
     ...(metaTitle && { metaTitle }),
     ...(metaDesc && { metaDescription: metaDesc }),
-  }), [title, slug, excerpt, content, category, coverUrl, metaTitle, metaDesc]);
+    ...(primaryKeyword && { primaryKeyword }),
+    ...(keywords && { keywords }),
+    ...(faqToJson() && { faqSchema: faqToJson() }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [title, slug, excerpt, content, category, coverUrl, metaTitle, metaDesc, primaryKeyword, keywords, faqPairs]);
 
   async function saveDraft() {
     if (!title.trim() || !excerpt.trim() || !content.trim()) {
@@ -294,6 +325,46 @@ export default function BlogPostForm({ initialPost }: Props) {
                   <label className="mb-1 block text-xs text-[var(--muted)]">Meta description (≤160 chars)</label>
                   <textarea rows={2} maxLength={160} value={metaDesc} onChange={(e) => setMetaDesc(e.target.value)} className={`${inputCls} resize-none`} placeholder={excerpt || "Falls back to excerpt"} />
                   <p className="mt-1 text-right text-xs text-[var(--muted)]">{metaDesc.length}/160</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--muted)]">Primary Keyword (for SEO)</label>
+                  <input type="text" value={primaryKeyword} onChange={(e) => setPrimaryKeyword(e.target.value)} className={inputCls} placeholder="e.g. digital marketing agency Delhi" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--muted)]">Secondary Keywords (comma-separated)</label>
+                  <input type="text" value={keywords} onChange={(e) => setKeywords(e.target.value)} className={inputCls} placeholder="e.g. seo services, social media marketing" />
+                </div>
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-xs text-[var(--muted)]">FAQ Schema (Q&amp;A pairs)</label>
+                    <button type="button" onClick={addFaqPair} className="text-xs font-medium text-brand-600 hover:text-brand-700">+ Add FAQ</button>
+                  </div>
+                  {faqPairs.length === 0 && (
+                    <p className="text-xs text-[var(--muted)] italic">No FAQ pairs yet — click &quot;+ Add FAQ&quot; to add one.</p>
+                  )}
+                  <div className="space-y-3">
+                    {faqPairs.map((pair, i) => (
+                      <div key={i} className="rounded-lg border border-[var(--border)] p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <input
+                            type="text"
+                            value={pair.q}
+                            onChange={(e) => updateFaqPair(i, "q", e.target.value)}
+                            placeholder="Question"
+                            className={`${inputCls} flex-1`}
+                          />
+                          <button type="button" onClick={() => removeFaqPair(i)} className="mt-0.5 text-xs text-danger hover:text-red-700">✕</button>
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={pair.a}
+                          onChange={(e) => updateFaqPair(i, "a", e.target.value)}
+                          placeholder="Answer"
+                          className={`${inputCls} resize-none`}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

@@ -20,6 +20,11 @@ export const metadata: Metadata = {
   title: "Divyash Digital — Delhi's Digital Growth Partner",
   description:
     "SEO, Social Media, Google Ads, Meta Ads, Web Design & Graphic Design — measurable results for businesses serious about growth.",
+  icons: {
+    icon: [{ url: "/logo.webp", type: "image/webp" }],
+    shortcut: [{ url: "/logo.webp", type: "image/webp" }],
+    apple: [{ url: "/logo.webp" }],
+  },
 };
 
 const themeScript = `(function(){

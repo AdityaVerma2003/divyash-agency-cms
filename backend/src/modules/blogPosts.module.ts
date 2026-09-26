@@ -1,14 +1,13 @@
 import { Router } from "express";
 import { BlogPostStatus, Role } from "@prisma/client";
 import { z } from "zod";
-import path from "path";
-import fs from "fs";
 import multer from "multer";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/apiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { logAudit } from "../lib/audit";
+import { uploadToCloudinary, deleteFromCloudinary } from "../lib/cloudinary";
 
 // ── Slug helpers ──────────────────────────────────────────────────────────────
 
@@ -31,21 +30,12 @@ async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
   }
 }
 
-// ── Cover-image upload (multer / local disk) ──────────────────────────────────
-// To swap for S3/Cloudinary: replace diskStorage with a cloud-storage engine and
-// return the remote URL instead of the local path.
-
-const COVER_DIR = path.join(process.cwd(), "uploads", "blog-covers");
-fs.mkdirSync(COVER_DIR, { recursive: true });
+// ── Cover-image upload (multer memory → Cloudinary) ───────────────────────────
+// Images are streamed to Cloudinary and never written to local disk,
+// so uploads survive Render redeploys.
 
 const coverUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, COVER_DIR),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("image/")) cb(null, true);
@@ -64,6 +54,9 @@ const createSchema = z.object({
   category: z.string().max(60).optional(),
   metaTitle: z.string().max(70).optional(),
   metaDescription: z.string().max(160).optional(),
+  primaryKeyword: z.string().max(200).optional(),
+  keywords: z.string().max(500).optional(),
+  faqSchema: z.string().optional(),
 });
 
 const updateSchema = createSchema.partial().extend({
@@ -119,8 +112,48 @@ publicBlogRouter.get(
     if (!post || post.status !== BlogPostStatus.PUBLISHED) {
       throw ApiError.notFound("Post not found");
     }
+
+    // Assemble JSON-LD structured data at response time (not stored in DB)
+    const origin = process.env.CLIENT_ORIGIN ?? "http://localhost:3000";
+    const articleSchema: Record<string, unknown> = {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      headline: post.title,
+      description: post.metaDescription ?? post.excerpt,
+      author: { "@type": "Person", name: post.author.name },
+      datePublished: post.publishedAt?.toISOString(),
+      dateModified: post.updatedAt.toISOString(),
+      publisher: {
+        "@type": "Organization",
+        name: "Divyash Digital",
+        logo: { "@type": "ImageObject", url: `${origin}/divyash-logo.png` },
+      },
+      ...(post.coverImageUrl && { image: post.coverImageUrl }),
+    };
+
+    const structuredData: unknown[] = [articleSchema];
+
+    if (post.faqSchema) {
+      try {
+        const faqItems = JSON.parse(post.faqSchema);
+        if (Array.isArray(faqItems) && faqItems.length > 0) {
+          structuredData.push({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: faqItems.map((item: { question: string; answer: string }) => ({
+              "@type": "Question",
+              name: item.question,
+              acceptedAnswer: { "@type": "Answer", text: item.answer },
+            })),
+          });
+        }
+      } catch {
+        // malformed faqSchema — skip silently
+      }
+    }
+
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=120");
-    res.json(post);
+    res.json({ ...post, structuredData });
   })
 );
 
@@ -176,6 +209,9 @@ adminBlogRouter.post(
         category: data.category,
         metaTitle: data.metaTitle,
         metaDescription: data.metaDescription,
+        primaryKeyword: data.primaryKeyword,
+        keywords: data.keywords,
+        faqSchema: data.faqSchema,
         status: BlogPostStatus.DRAFT,
         authorId: req.user!.userId,
       },
@@ -228,6 +264,9 @@ adminBlogRouter.patch(
         ...(data.category        !== undefined && { category: data.category }),
         ...(data.metaTitle       !== undefined && { metaTitle: data.metaTitle }),
         ...(data.metaDescription !== undefined && { metaDescription: data.metaDescription }),
+        ...(data.primaryKeyword  !== undefined && { primaryKeyword: data.primaryKeyword }),
+        ...(data.keywords        !== undefined && { keywords: data.keywords }),
+        ...(data.faqSchema       !== undefined && { faqSchema: data.faqSchema }),
         ...(data.status !== undefined && { status: data.status }),
         publishedAt,
       },
@@ -277,7 +316,7 @@ adminBlogRouter.delete(
   })
 );
 
-// POST /api/admin/blog-posts/:id/cover-image — upload cover image
+// POST /api/admin/blog-posts/:id/cover-image — upload cover image to Cloudinary
 adminBlogRouter.post(
   "/:id/cover-image",
   coverUpload.single("cover"),
@@ -287,8 +326,14 @@ adminBlogRouter.post(
 
     if (!req.file) throw ApiError.badRequest("No file uploaded");
 
-    const apiBase = process.env.API_BASE_URL ?? `http://localhost:${process.env.PORT ?? 4000}`;
-    const coverImageUrl = `${apiBase}/uploads/blog-covers/${req.file.filename}`;
+    // Upload buffer to Cloudinary; delete old image if one was already set
+    const [coverImageUrl] = await Promise.all([
+      uploadToCloudinary(req.file.buffer, {
+        folder:    "divyash-agency/blog-covers",
+        public_id: `blog-${req.params.id}`,
+      }),
+      existing.coverImageUrl ? deleteFromCloudinary(existing.coverImageUrl) : Promise.resolve(),
+    ]);
 
     await prisma.blogPost.update({
       where: { id: req.params.id },

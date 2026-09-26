@@ -66,16 +66,18 @@ export default function LoginPage() {
           <img
             src="/logo.webp"
             alt="Divyash Digital"
-            className="mx-auto mb-4 h-16 w-16 object-contain drop-shadow-lg"
+            className="mx-auto mb-0 h-20 w-auto object-contain drop-shadow-lg sm:h-24"
           />
-          <p className="font-display text-lg font-bold text-[var(--ink)]">Divyash Digital</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">Sign in to your portal</p>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-[var(--ink)] sm:text-3xl">
+            Divyash Digital
+          </h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">Sign in to your portal</p>
         </div>
 
         {/* Form */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-7 shadow-xl shadow-black/5 dark:shadow-black/30">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-7 shadow-xl shadow-black/5 dark:shadow-black/30 sm:p-8">
           <form onSubmit={handleSubmit} noValidate>
-            <h1 className="mb-6 font-display text-xl font-semibold text-[var(--ink)]">Welcome back</h1>
+            <h2 className="mb-7 font-display text-2xl font-bold tracking-tight text-[var(--ink)]">Welcome back</h2>
 
             <label className="mb-4 block text-sm">
               <span className="mb-1.5 block font-medium text-[var(--muted)]">Email</span>

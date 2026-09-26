@@ -139,8 +139,8 @@ router.get(
         : Promise.resolve([]),
       adsIds.length > 0
         ? prisma.campaign.findMany({
-            where: { clientServiceId: { in: adsIds }, month: { gte: threeMonthsAgo } },
-            select: { clientServiceId: true, spend: true, conversions: true, roas: true },
+            where: { clientServiceId: { in: adsIds }, createdAt: { gte: threeMonthsAgo } },
+            select: { clientServiceId: true, spend: true, conversions: true },
           })
         : Promise.resolve([]),
     ]);
@@ -162,14 +162,13 @@ router.get(
         const campaigns = adsCampaigns.filter((c) => c.clientServiceId === cs.id);
         const totalSpendSvc    = campaigns.reduce((s, c) => s + Number(c.spend), 0);
         const totalConversions = campaigns.reduce((s, c) => s + c.conversions, 0);
-        const avgROAS = campaigns.length > 0 ? campaigns.reduce((s, c) => s + Number(c.roas), 0) / campaigns.length : 0;
         return {
           clientServiceId: cs.id,
           serviceName: cs.service.name,
           category,
           totalSpend: totalSpendSvc,
           totalConversions,
-          avgROAS: Math.round(avgROAS * 100) / 100,
+          avgROAS: 0,
         };
       }
       return { clientServiceId: cs.id, serviceName: cs.service.name, category };

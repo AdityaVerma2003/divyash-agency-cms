@@ -9,14 +9,26 @@ import { authenticate, authorize } from "../middleware/auth.middleware";
 const router = Router();
 router.use(authenticate);
 
+const CAMPAIGN_OBJECTIVES = [
+  "LEAD_GENERATION",
+  "AWARENESS",
+  "REACH_AND_ENGAGEMENT",
+  "APP_INSTALL",
+  "SOCIAL_MEDIA_VIEWS",
+  "INFLUENCES",
+  "OTHERS",
+] as const;
+
 const campaignInputSchema = z.object({
   clientServiceId: z.string().uuid(),
-  month: z.coerce.date(),
+  campaignName: z.string().min(1),
+  adGroup: z.string().optional(),
+  adSet: z.string().optional(),
+  objective: z.enum(CAMPAIGN_OBJECTIVES),
   spend: z.number().min(0).default(0),
   impressions: z.number().int().min(0).default(0),
   clicks: z.number().int().min(0).default(0),
   conversions: z.number().int().min(0).default(0),
-  roas: z.number().min(0).default(0),
 });
 
 // GET /api/campaigns?clientServiceId=...
@@ -34,7 +46,7 @@ router.get(
 
     const campaigns = await prisma.campaign.findMany({
       where: { clientServiceId },
-      orderBy: { month: "desc" },
+      orderBy: { createdAt: "desc" },
     });
     res.json(campaigns);
   })

@@ -199,6 +199,23 @@ router.patch(
   })
 );
 
+// PATCH /api/clients/:clientId/agreement — update plain-text agreement details
+router.patch(
+  "/:clientId/agreement",
+  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  asyncHandler(async (req, res) => {
+    const { agreementDetails } = z
+      .object({ agreementDetails: z.string().max(1000).optional() })
+      .parse(req.body);
+
+    const client = await prisma.client.update({
+      where: { id: req.params.clientId },
+      data: { agreementDetails: agreementDetails ?? null },
+    });
+    res.json({ agreementDetails: client.agreementDetails });
+  })
+);
+
 // DELETE /api/clients/:clientId — super admin only
 router.delete(
   "/:clientId",
@@ -235,6 +252,8 @@ router.delete(
       // Direct client children
       await tx.lead.deleteMany({ where: { clientId } });
       await tx.report.deleteMany({ where: { clientId } });
+      await tx.clientReport.deleteMany({ where: { clientId } });
+      await tx.caseStudy.deleteMany({ where: { clientId } });
 
       await tx.client.delete({ where: { id: clientId } });
     });

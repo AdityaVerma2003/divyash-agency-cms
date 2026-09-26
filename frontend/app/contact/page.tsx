@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import ThemeToggle from "@/components/ThemeToggle";
+import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
@@ -105,28 +106,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-[var(--page-bg)] text-[var(--ink)]">
-      {/* Nav */}
-      <header className="fixed inset-x-0 top-0 z-50 bg-[var(--surface)]/90 backdrop-blur-md border-b border-[var(--border)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.webp" alt="Divyash Digital" className="h-8 w-8 object-contain flex-shrink-0" />
-            <span className="font-display font-bold text-lg text-[var(--ink)]">Divyash Digital</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[var(--muted)]">
-            <Link href="/services" className="hover:text-coral-500 transition-colors">Services</Link>
-            <Link href="/work"     className="hover:text-coral-500 transition-colors">Our Work</Link>
-            <Link href="/blog"     className="hover:text-coral-500 transition-colors">Blog</Link>
-            <Link href="/contact"  className="text-coral-500 font-semibold">Contact</Link>
-          </nav>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <Link href="/login" className="text-sm font-medium text-[var(--muted)] hover:text-[var(--ink)] transition-colors px-3 py-1.5">
-              Sign in
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Nav />
 
       {/* Hero */}
       <section className="relative pt-28 pb-16 md:pt-36 md:pb-20 overflow-hidden">
@@ -344,9 +324,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <footer className="bg-[#1C1410] text-white/40 text-center py-8 text-xs">
-        <p>© {new Date().getFullYear()} Divyash Digital · <Link href="/" className="hover:text-coral-400 transition-colors">Home</Link> · info@divyashdigital.co.in</p>
-      </footer>
+      <Footer />
     </div>
   );
 }
