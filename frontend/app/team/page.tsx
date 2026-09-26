@@ -139,8 +139,10 @@ function FounderCard({ founder, reverse }: { founder: Founder; reverse?: boolean
 
       {/* Offset down from the photo's top edge — gives the name/title room to breathe
           rather than sitting centered against the full portrait height */}
-      <div className={`sm:pt-10 md:pt-14 ${reverse ? "sm:order-1" : ""}`}>
-        <p className="font-display text-2xl font-bold text-[var(--ink)]">{founder.name}</p>
+      <div className={`sm:pt-10 md:pt-8 ${reverse ? "sm:order-1" : ""}`}>
+        <p className="font-script text-5xl  leading-tight text-[var(--ink)]">
+          {founder.name}
+        </p>
         <p className="mt-1.5 text-sm font-semibold text-coral-500">{founder.title}</p>
         <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-[var(--muted)]">
           {founder.tags.map((tag, i) => (
@@ -181,7 +183,7 @@ function FounderCard({ founder, reverse }: { founder: Founder; reverse?: boolean
 function FoundersSection() {
   return (
     <section className="mx-auto max-w-5xl px-5 pb-20">
-      <p className="section-label mb-10 text-center">Meet the Founders</p>
+      <p className="section-label mb-10 text-lg text-center">Meet the Founders</p>
       <div className="space-y-16">
         {FOUNDERS.map((f, i) => (
           <FounderCard key={f.name} founder={f} reverse={i % 2 === 1} />
@@ -308,7 +310,7 @@ export default function TeamPage() {
             {/* Rest of team */}
             {rest.length > 0 && (
               <div>
-                <p className="section-label mb-6">Our team</p>
+                <p className="section-label text-lg mb-6">Our team</p>
                 <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                   {rest.map((m, i) => (
                     <MemberCard key={m.id} member={m} delay={`reveal-delay-${(i % 6) + 1}`} />

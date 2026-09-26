@@ -8,6 +8,7 @@ const config: Config = {
       fontFamily: {
         sans:    ["var(--font-jakarta)", "system-ui", "sans-serif"],
         display: ["var(--font-sora)",    "system-ui", "sans-serif"],
+        script:  ["var(--font-lavishly-yours)", "cursive"],
       },
       colors: {
         // ── Landing page palette ─────────────────────────────────
