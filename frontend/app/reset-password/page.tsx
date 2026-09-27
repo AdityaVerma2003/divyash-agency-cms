@@ -151,7 +151,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.webp" alt="Divyash Digital" className="mx-auto mb-0 h-20 w-auto object-contain drop-shadow-lg sm:h-24" />
+          <img src="/divyash-logo-everywhere.png" alt="Divyash Digital" className="mx-auto mb-0 h-20 w-auto object-contain drop-shadow-lg sm:h-24" />
           <p className="font-display text-2xl font-bold tracking-tight text-[var(--ink)] sm:text-3xl">
             Divyash Digital
           </p>

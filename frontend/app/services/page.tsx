@@ -4,6 +4,9 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { useReveal } from "@/hooks/useReveal";
+import { useReducedMotion } from "framer-motion";
+import ReactLenis from "lenis/react";
+import { type CSSProperties, useEffect, useRef } from "react";
 
 /* ── Local decorative doodles (kept file-local — not exported from the landing page) ── */
 function DoodleStar({ size = 28 }: { size?: number }) {
@@ -28,14 +31,6 @@ function DoodleHashtag({ size = 24 }: { size?: number }) {
     </svg>
   );
 }
-function DoodleCursor({ size = 26 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 3l14 9-7 1-4 7-3-17z" /><circle cx="18" cy="18" r="3" strokeDasharray="2 1.5" />
-    </svg>
-  );
-}
-
 const SERVICES = [
   {
     name: "Search Engine Optimisation",
@@ -300,125 +295,206 @@ const SERVICES = [
   },
 ];
 
-const DECOR_DOODLES = [
-  <DoodleStar key="star" size={30} />,
-  <DoodleLightning key="lightning" size={28} />,
-  <DoodleHashtag key="hashtag" size={24} />,
-  <DoodleCursor key="cursor" size={26} />,
-];
+/* ── Scroll-reactive tilted showcase grid — every service's full details live
+   directly on its own card, tilting and settling into place as it crosses the
+   viewport (theme colors, not photography). Each card is a single clickable
+   link through to /contact. ── */
 
-function ServiceBlock({ svc, index, total }: { svc: typeof SERVICES[0]; index: number; total: number }) {
-  const { ref, visible } = useReveal();
-  const isEven = index % 2 === 0;
-  const isLast = index === total - 1;
+type TileVariables = CSSProperties & {
+  "--tile-blur": string;
+  "--tile-brightness": number;
+  "--tile-saturation": number;
+  "--tile-transform": string;
+  "--tile-scale": number;
+};
+
+function clampUnit(value: number, minimum = 0, maximum = 1) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function ServiceTile({
+  svc,
+  index,
+  reduceMotion,
+}: {
+  svc: typeof SERVICES[0];
+  index: number;
+  reduceMotion: boolean;
+}) {
+  const tileRef = useRef<HTMLElement>(null);
+  const { ref: revealRef, visible } = useReveal();
+  const side = index % 2 === 0 ? -1 : 1;
+  const note = "note" in svc ? svc.note : undefined;
+
+  useEffect(() => {
+    const tile = tileRef.current;
+    if (!tile || reduceMotion) return;
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const rect = tile.getBoundingClientRect();
+      const travel = window.innerHeight + rect.height;
+      const position = clampUnit((window.innerHeight - rect.top) / travel);
+      const distance = Math.abs(position - 0.5) * 2;
+      const signed = (position - 0.5) * 2;
+      const eased = distance * distance * (3 - 2 * distance);
+      const x = side * eased * 10;
+      const y = -signed * eased * 16;
+      const tilt = -signed * 22;
+      const roll = side * signed * 2;
+      const skew = -side * signed * 3;
+
+      tile.style.setProperty("--tile-blur", `${eased * 3}px`);
+      tile.style.setProperty("--tile-brightness", String(1 - eased * 0.22));
+      tile.style.setProperty("--tile-saturation", String(1 - eased * 0.2));
+      tile.style.setProperty("--tile-scale", String(1.01 + eased * 0.05));
+      tile.style.setProperty(
+        "--tile-transform",
+        `translate3d(${x}%, ${y}%, ${eased * 90}px) rotateX(${tilt}deg) rotateZ(${roll}deg) skewX(${skew}deg)`,
+      );
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+
+    update();
+    const resizeObserver = new ResizeObserver(schedule);
+    resizeObserver.observe(tile);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [reduceMotion, side]);
+
+  const variables: TileVariables = {
+    perspective: 1000,
+    "--tile-blur": "0px",
+    "--tile-brightness": 1,
+    "--tile-saturation": 1,
+    "--tile-transform": "translate3d(0, 0, 0)",
+    "--tile-scale": 1.01,
+  };
+
   return (
-    <div ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${visible ? "visible" : ""} group relative grid grid-cols-1 gap-8 py-5 md:grid-cols-2 md:py-20 md:border-b md:border-[var(--border)] md:last:border-0`}>
-
-      {/* Growth line running through the center gutter, connecting every service */}
-      {!isLast && (
+    <figure
+      ref={tileRef as React.RefObject<HTMLElement>}
+      id={svc.slug}
+      className={`m-0 scroll-mt-24 ${side > 0 ? "sm:pt-10 lg:pt-16" : ""}`}
+      style={variables}
+    >
+      <Link href="/contact" className="group block h-full w-full">
         <div
-          className="pointer-events-none absolute left-1/2 top-24 z-0 hidden w-px -translate-x-1/2 md:block"
-          style={{ height: "calc(100% + 2.5rem)" }}
-          aria-hidden
+          ref={revealRef as React.RefObject<HTMLDivElement>}
+          className={`relative h-full w-full overflow-hidden rounded-[1.5rem] shadow-[0_20px_60px_rgba(16,17,20,0.18)] transition-shadow duration-300 hover:shadow-[0_28px_70px_rgba(16,17,20,0.28)] dark:shadow-[0_20px_70px_rgba(0,0,0,0.4)] ${
+            !reduceMotion
+              ? "[filter:blur(var(--tile-blur))_brightness(var(--tile-brightness))_saturate(var(--tile-saturation))] [transform:var(--tile-transform)] [transform-style:preserve-3d]"
+              : ""
+          }`}
+          style={{ backgroundColor: svc.accent }}
         >
-          <div className="h-full w-full border-l-2 border-dashed opacity-25 transition-opacity duration-500 group-hover:opacity-50" style={{ borderColor: svc.accent }} />
-        </div>
-      )}
-
-      {/* Content — a self-contained card on mobile, plain column on desktop */}
-      <div
-        className={`relative z-10 ${isEven ? "md:order-1" : "md:order-2"} rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none`}
-      >
-        {/* Icon medallion with rotating dashed orbit + step number */}
-        <div className="relative mb-4 flex h-14 w-14 items-center justify-center">
-          <svg className="absolute inset-0 h-full w-full animate-spin-slow opacity-40 transition-opacity duration-300 group-hover:opacity-80" viewBox="0 0 56 56" fill="none" aria-hidden>
-            <circle cx="28" cy="28" r="26" stroke={svc.accent} strokeWidth="1.5" strokeDasharray="4 7" strokeLinecap="round" />
-          </svg>
-          <div className={`relative flex h-11 w-11 items-center justify-center rounded-2xl ${svc.color} transition-transform duration-500 group-hover:rotate-[8deg] group-hover:scale-110 motion-reduce:group-hover:scale-100`}>
-            {svc.icon}
-          </div>
-          <span
-            className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full font-display text-[10px] font-bold text-white shadow-sm"
-            style={{ backgroundColor: svc.accent }}
-          >
-            {String(index + 1).padStart(2, "0")}
-          </span>
-        </div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)] mb-2">{svc.tagline}</p>
-        <h2 className="font-display text-2xl font-bold text-[var(--ink)] md:text-3xl mb-4">{svc.name}</h2>
-
-        {/* Hand-drawn underline that draws itself in on reveal */}
-        <svg className="-mt-2 mb-4 h-2.5 w-32 text-current" style={{ color: svc.accent }} viewBox="0 0 140 10" fill="none" aria-hidden>
-          <path
-            d="M2 7C28 2 56 2 70 5s42 3 68-1"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeDasharray="180"
-            className={visible ? "animate-draw" : ""}
-            style={visible ? undefined : { strokeDashoffset: 180 }}
-          />
-        </svg>
-
-        <p className="text-[var(--muted)] leading-relaxed mb-6">{svc.description}</p>
-
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-5 mb-6">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] mb-3">What's included</p>
-          <ul className="space-y-2">
-            {svc.deliverables.map((d) => (
-              <li key={d} className="flex items-start gap-2.5 text-sm text-[var(--ink)]">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mt-0.5 flex-shrink-0 text-coral-500">
-                  <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                {d}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 md:bg-[var(--surface)]">
-          <div className="h-2 w-2 rounded-full bg-coral-500" />
-          <p className="text-xs font-semibold text-[var(--ink)]">{svc.result}</p>
-        </div>
-
-        {/* Mobile CTA — desktop gets this from the visual card instead */}
-        <Link
-          href="/contact"
-          className="mt-6 block w-full rounded-full bg-coral-500 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-coral-600 md:hidden"
-        >
-          Get started →
-        </Link>
-      </div>
-
-      {/* Visual card — desktop only; on mobile its content lives in the card above */}
-      <div className={`relative z-10 ${isEven ? "md:order-2" : "md:order-1"} hidden items-center justify-center md:flex`}>
-        <div className="relative w-full max-w-xs">
-          <div className="blob absolute inset-0 -m-6 opacity-[0.06] transition-opacity duration-500 group-hover:opacity-[0.1]" style={{ backgroundColor: svc.accent }} />
-          {/* Floating decorative doodle, unique per row */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20" />
           <div
-            className={`pointer-events-none absolute ${isEven ? "-right-6 -top-6" : "-left-6 -top-6"} opacity-[0.12] animate-float-slow`}
-            style={{ color: svc.accent }}
-            aria-hidden
+            className={`relative flex h-full w-full flex-col p-6 text-white sm:p-7 ${
+              !reduceMotion ? "[transform:scale(var(--tile-scale))]" : ""
+            }`}
           >
-            {DECOR_DOODLES[index % DECOR_DOODLES.length]}
-          </div>
-          <div className="relative rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-xl shadow-black/5 dark:shadow-black/30 text-center transition-all duration-300 group-hover:-translate-y-1.5 group-hover:shadow-2xl motion-reduce:group-hover:translate-y-0">
-            <div className={`mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl ${svc.color} transition-transform duration-500 group-hover:rotate-[8deg]`}>
-              {svc.icon}
+            {/* Header — icon medallion + step number */}
+            <div className="flex items-start justify-between">
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-500 group-hover:rotate-[8deg] group-hover:scale-110"
+                style={{ backgroundColor: "rgba(255,255,255,0.16)" }}
+              >
+                {svc.icon}
+              </div>
+              <span className="font-display text-xl font-bold leading-none opacity-70">
+                {String(index + 1).padStart(2, "0")}
+              </span>
             </div>
-            <p className="font-display text-xl font-bold text-[var(--ink)] mb-1">{svc.name}</p>
-            <p className="text-sm text-[var(--muted)] mb-6">{svc.tagline}</p>
-            <Link href="/contact"
-              className="group/btn flex w-full items-center justify-center gap-1.5 rounded-full bg-coral-500 py-2.5 text-sm font-semibold text-white hover:bg-coral-600 transition-colors">
+
+            <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.16em] opacity-75">{svc.tagline}</p>
+            <h3 className="font-display text-xl font-bold leading-tight sm:text-2xl">{svc.name}</h3>
+
+            {/* Hand-drawn underline that draws itself in on reveal */}
+            <svg className="mt-2 mb-4 h-2.5 w-28 text-white/70" viewBox="0 0 140 10" fill="none" aria-hidden>
+              <path
+                d="M2 7C28 2 56 2 70 5s42 3 68-1"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeDasharray="180"
+                className={visible ? "animate-draw" : ""}
+                style={visible ? undefined : { strokeDashoffset: 180 }}
+              />
+            </svg>
+
+            <p className="text-sm leading-relaxed text-white/85">{svc.description}</p>
+
+            <div className="mt-5 rounded-2xl p-4" style={{ backgroundColor: "rgba(255,255,255,0.12)" }}>
+              <p className="mb-2.5 text-[10px] font-bold uppercase tracking-wide text-white/70">What&apos;s included</p>
+              <ul className="space-y-2">
+                {svc.deliverables.map((d) => (
+                  <li key={d} className="flex items-start gap-2 text-sm text-white/90">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="mt-0.5 flex-shrink-0 opacity-80">
+                      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {d}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div
+              className="mt-4 inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5"
+              style={{ backgroundColor: "rgba(255,255,255,0.16)" }}
+            >
+              <div className="h-1.5 w-1.5 rounded-full bg-white" />
+              <p className="text-xs font-semibold">{svc.result}</p>
+            </div>
+
+            {note && <p className="mt-3 text-xs italic text-white/70">{note}</p>}
+
+            <div
+              className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-full bg-white py-3 text-sm font-semibold transition-transform duration-300 group-hover:-translate-y-0.5"
+              style={{ color: svc.accent }}
+            >
               Get started
-              <span className="transition-transform duration-300 group-hover/btn:translate-x-1">→</span>
-            </Link>
+              <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+            </div>
           </div>
         </div>
-      </div>
+      </Link>
+    </figure>
+  );
+}
+
+function ServicesTiltedGrid() {
+  const reduceMotion = useReducedMotion() ?? false;
+
+  const grid = (
+    <div className="mx-auto grid max-w-6xl grid-cols-1 items-start gap-x-6 gap-y-10 px-5 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-16 lg:gap-x-10">
+      {SERVICES.map((svc, i) => (
+        <ServiceTile key={svc.slug} svc={svc} index={i} reduceMotion={reduceMotion} />
+      ))}
     </div>
+  );
+
+  return (
+    <section className="relative overflow-hidden pt-4 pb-20 md:pt-10 md:pb-28" aria-label="Our services">
+      {reduceMotion ? (
+        grid
+      ) : (
+        <ReactLenis root options={{ autoRaf: true, lerp: 0.08, wheelMultiplier: 0.9 }}>
+          {grid}
+        </ReactLenis>
+      )}
+    </section>
   );
 }
 
@@ -457,15 +533,16 @@ export default function ServicesPage() {
             {SERVICES.length} specialised digital marketing services — each designed to work independently
             or as part of a full-stack growth strategy tailored to your business.
           </p>
+
+          <p className="mt-8 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-coral-500" aria-hidden />
+            Scroll to explore
+          </p>
         </div>
       </section>
 
-      {/* Services */}
-      <section className="relative mx-auto max-w-6xl px-5 pb-24">
-        {SERVICES.map((svc, i) => (
-          <ServiceBlock key={svc.slug} svc={svc} index={i} total={SERVICES.length} />
-        ))}
-      </section>
+      {/* Tilted showcase grid — every service's full details on its own card, tilting into scroll */}
+      <ServicesTiltedGrid />
 
       {/* CTA */}
       <section className="relative overflow-hidden bg-coral-500 py-16">

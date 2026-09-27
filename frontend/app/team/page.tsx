@@ -120,7 +120,7 @@ interface Founder {
 
 const FOUNDERS: Founder[] = [
   { name: "Divya Singh", title: "Founder, CEO", tags: ["Business Development", "Strategy", "Vision", "Growth"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790432848/divya.webp', linkedin: "https://www.linkedin.com" },
-  { name: "Yash Verma", title: "Co-Founder, COO", tags: ["Operations", "People", "Execution", "Culture"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790432848/yash.webp', linkedin: "https://www.linkedin.com" },
+  { name: "Yash Verma", title: "Co-Founder, COO", tags: ["Operations", "People", "Execution", "Culture"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790529392/yash-phgoto.png', linkedin: "https://www.linkedin.com" },
 ];
 
 function DefaultAvatar() {

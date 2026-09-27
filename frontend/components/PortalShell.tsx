@@ -201,7 +201,7 @@ export default function PortalShell({ allowedRoles, navItems, children }: Portal
         <div className="mb-8 px-3 flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.webp"
+            src="/divyash-logo-everywhere.png"
             alt="Divyash Digital"
             className="h-10 w-auto flex-shrink-0 object-contain lg:h-11"
           />
@@ -339,7 +339,7 @@ export default function PortalShell({ allowedRoles, navItems, children }: Portal
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo.webp"
+              src="/divyash-logo-everywhere.png"
               alt="Divyash Digital"
               className="h-8 w-auto flex-shrink-0 object-contain sm:h-9"
             />

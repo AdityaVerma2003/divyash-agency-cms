@@ -140,12 +140,14 @@ export default function Footer() {
 
           {/* Col 1 — Brand */}
           <div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/divyash-logo.jpeg"
-              alt="Divyash Digital"
-              className="mb-4 h-10 w-auto rounded-lg object-contain sm:h-12 md:h-14 lg:h-16"
-            />
+            <div className="mb-4 inline-flex h-14 items-center sm:h-16 md:h-20 lg:h-24">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/divyash-logo-header-footer.png"
+                alt="Divyash Digital"
+                className="h-full w-max object-contain"
+              />
+            </div>
             <p className="mb-5 max-w-[220px] text-sm leading-relaxed text-white/50">
               At Divyash Digital, we believe in the power of digital innovation to transform businesses and elevate brands to new heights.
             </p>

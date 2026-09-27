@@ -63,9 +63,9 @@ export default function Nav() {
     }`}>
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center flex-shrink-0">
+        <Link href="/" className="flex h-12 items-center flex-shrink-0 sm:h-14 md:h-16 lg:h-20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/divyash-logo.jpeg" alt="Divyash Digital" className="h-10 w-auto object-contain flex-shrink-0 rounded-lg sm:h-12 md:h-14 lg:h-16" />
+          <img src="/divyash-logo-header-footer.png" alt="Divyash Digital" className="h-full w-auto object-contain flex-shrink-0" />
         </Link>
 
         {/* Desktop nav */}

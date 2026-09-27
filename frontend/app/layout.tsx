@@ -29,9 +29,9 @@ export const metadata: Metadata = {
   description:
     "SEO, Social Media, Google Ads, Meta Ads, Web Design & Graphic Design — measurable results for businesses serious about growth.",
   icons: {
-    icon: [{ url: "/logo.webp", type: "image/webp" }],
-    shortcut: [{ url: "/logo.webp", type: "image/webp" }],
-    apple: [{ url: "/logo.webp" }],
+    icon: [{ url: "/divyash-logo-everywhere.png", type: "image/png" }],
+    shortcut: [{ url: "/divyash-logo-everywhere.png", type: "image/png" }],
+    apple: [{ url: "/divyash-logo-everywhere.png" }],
   },
 };
 

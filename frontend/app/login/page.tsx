@@ -64,7 +64,7 @@ export default function LoginPage() {
         <div className="mb-10 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.webp"
+            src="/divyash-logo-everywhere.png"
             alt="Divyash Digital"
             className="mx-auto mb-0 h-20 w-auto object-contain drop-shadow-lg sm:h-24"
           />

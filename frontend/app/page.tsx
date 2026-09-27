@@ -2,11 +2,28 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { useReveal } from "@/hooks/useReveal";
 import { FlipStack, type FlipStackItem } from "@/components/FlipStack";
 import { TextMorph } from "@/components/TextMorph";
+import {
+  motion,
+  useScroll,
+  useSpring,
+  useTransform,
+  useMotionValue,
+  useVelocity,
+  useAnimationFrame,
+  wrap,
+} from "framer-motion";
+import { LayeredStack } from "@/components/LayeredStack";
+const HeroShaderCanvas = dynamic(
+  () => import("@/components/HeroShaderCanvas").then((m) => m.HeroShaderCanvas),
+  { ssr: false },
+);
+import { ScrollSplitCard, type ScrollSplitCardItem } from "@/components/ScrollSplitCard";
 import {
   CLIENT_LOGOS_ROW_1,
   CLIENT_LOGOS_ROW_2,
@@ -239,7 +256,7 @@ function HeroDashboardMockup() {
     <div className="w-[200px] rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-2xl shadow-black/15 dark:shadow-black/60">
       <div className="flex items-center gap-2 mb-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.webp" alt="" className="h-5 w-5 object-contain flex-shrink-0" aria-hidden />
+        <img src="/divyash-logo-everywhere.png" alt="" className="h-5 w-5 object-contain flex-shrink-0" aria-hidden />
         <span className="text-[11px] font-semibold text-[var(--ink)]">Growth Overview</span>
         <div className="ml-auto flex items-center gap-1">
           <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -305,6 +322,21 @@ function HeroDashboardMockup() {
 function Hero() {
   return (
     <section className="relative overflow-hidden pt-28 pb-16 md:pt-36 md:pb-24">
+      {/* Animated shader-gradient backdrop */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.55] dark:opacity-[0.35]" aria-hidden>
+        <HeroShaderCanvas color1="#6366F1" color2="#2DBFA0" speed={0.5} className="h-full w-full" />
+      </div>
+      {/* Fade the shader out toward the edges so it reads as a soft glow behind the
+          content instead of a hard-edged rectangle */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[var(--page-bg)]"
+        style={{
+          maskImage: "radial-gradient(ellipse 80% 70% at 50% 45%, black 0%, black 55%, transparent 100%)",
+          WebkitMaskImage: "radial-gradient(ellipse 80% 70% at 50% 45%, black 0%, black 55%, transparent 100%)",
+        }}
+        aria-hidden
+      />
+
       {/* Background blobs */}
       <div className="blob pointer-events-none absolute -top-32 -right-32 h-[480px] w-[480px] bg-coral-500 opacity-[0.08] dark:opacity-[0.06]" aria-hidden />
       <div className="blob pointer-events-none absolute -bottom-16 -left-24 h-[320px] w-[320px] bg-[#2DBFA0] opacity-[0.08] dark:opacity-[0.05]" aria-hidden style={{ animationDelay: "-4s" }} />
@@ -321,7 +353,7 @@ function Hero() {
         </svg>
       </div>
 
-      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 lg:grid-cols-2">
+      <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 lg:grid-cols-2">
         {/* Left — copy */}
         <div>
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-coral-100 bg-coral-50 dark:border-coral-500/20 dark:bg-coral-500/10 px-4 py-1.5">
@@ -582,39 +614,88 @@ function ServicesSection() {
 }
 
 /* ── Stats ──────────────────────────────────────────────────────────────────── */
+const STATS_BANNER_GRADIENT = "linear-gradient(120deg, #6366F1 0%, #5B7CF7 35%, #2DBFA0 70%, #F87DA3 100%)";
+
 function StatsSection() {
   const { ref: r1, count: c1 } = useCountUp(180);
   const { ref: r2, count: c2 } = useCountUp(50);
   const { ref: r3, count: c3 } = useCountUp(100);
   const { ref: r4, count: c4 } = useCountUp(6);
 
-  const stats = [
-    { ref: r1, count: c1, suffix: "+", label: "Projects delivered", note: "across 6 service areas" },
-    { ref: r2, count: c2, suffix: "%", label: "Average growth rate", note: "across active clients" },
-    { ref: r3, count: c3, suffix: "+", label: "Design projects", note: "logos, creatives, UI/UX" },
-    { ref: r4, count: c4, suffix: "", label: "Core services", note: "under one roof" },
+  // count-up is triggered off these sentinels (kept in normal layout via
+  // sr-only, not display:none, so they still register with the
+  // IntersectionObserver) rather than the card markup itself, since the card
+  // content below renders twice — once for the desktop split effect, once
+  // for the plain mobile layout — and a ref can only ever attach to one of them.
+  const sentinels = (
+    <span className="sr-only" aria-hidden>
+      <span ref={r1}>{c1}</span>
+      <span ref={r2}>{c2}</span>
+      <span ref={r3}>{c3}</span>
+      <span ref={r4}>{c4}</span>
+    </span>
+  );
+
+  const stats: ScrollSplitCardItem[] = [
+    {
+      icon: <DoodleBarChart size={30} />,
+      bgColor: "#6366F1",
+      textColor: "#FFFFFF",
+      title: (
+        <p className="font-display text-3xl font-extrabold sm:text-4xl md:text-5xl">
+          {c1}+
+        </p>
+      ),
+      description: "Projects delivered — across 6 service areas",
+    },
+    {
+      icon: <DoodleRocket size={30} />,
+      bgColor: "#5B7CF7",
+      textColor: "#FFFFFF",
+      title: (
+        <p className="font-display text-3xl font-extrabold sm:text-4xl md:text-5xl">
+          {c2}%
+        </p>
+      ),
+      description: "Average growth rate — across active clients",
+    },
+    {
+      icon: <DoodleTarget size={30} />,
+      bgColor: "#2DBFA0",
+      textColor: "#FFFFFF",
+      title: (
+        <p className="font-display text-3xl font-extrabold sm:text-4xl md:text-5xl">
+          {c3}+
+        </p>
+      ),
+      description: "Design projects — logos, creatives, UI/UX",
+    },
+    {
+      icon: <DoodleMagnifier size={30} />,
+      bgColor: "#F87DA3",
+      textColor: "#FFFFFF",
+      title: (
+        <p className="font-display text-3xl font-extrabold sm:text-4xl md:text-5xl">
+          {c4}
+        </p>
+      ),
+      description: "Core services — under one roof",
+    },
   ];
 
   return (
-    <section className="relative bg-coral-500 py-16 overflow-hidden">
-      {/* Doodles in coral bg */}
-      <div className="pointer-events-none absolute top-4 left-8 text-white opacity-[0.06]" aria-hidden><DoodleBarChart size={64} /></div>
-      <div className="pointer-events-none absolute bottom-4 right-8 text-white opacity-[0.06]" aria-hidden><DoodleRocket size={56} /></div>
-      <div className="pointer-events-none absolute top-1/2 left-1/3 -translate-y-1/2 text-white opacity-[0.04]" aria-hidden><DoodleTarget size={72} /></div>
-
-      <div className="mx-auto max-w-6xl px-5">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="text-center text-white">
-              <p className="font-display text-4xl font-extrabold md:text-5xl">
-                <span ref={s.ref}>{s.count}</span>{s.suffix}
-              </p>
-              <p className="mt-2 text-sm font-semibold opacity-90">{s.label}</p>
-              <p className="mt-0.5 text-xs opacity-60">{s.note}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+    <section className="relative bg-coral-500">
+      {sentinels}
+      <ScrollSplitCard
+        bannerBackground={STATS_BANNER_GRADIENT}
+        hint="Scroll to see the numbers"
+        cards={stats}
+        endingText={
+          <p className="font-display text-2xl font-bold text-white sm:text-3xl">
+            Every number, backed by real work.
+          </p>
+        }
+      />
     </section>
   );
 }
@@ -750,80 +831,48 @@ function DoodleConnector({ down = false }: { down?: boolean }) {
 
 const STEP_ICONS = [DoodleMagnifier, DoodleTarget, DoodleRocket, DoodleChart];
 
-function ProcessStep({ p, index, delay }: { p: typeof PROCESS[0]; index: number; delay: string }) {
-  const { ref, visible } = useReveal();
+/* Layered stack — the four steps sit fanned in a shuffled pile until hovered,
+   then spring apart into their grid slots (adapted from the pasted
+   LayeredStack/gsap component; same icon-medallion step cards, colors and
+   copy as before). Touch devices have no hover, so mobile just shows the
+   plain unstacked grid instead. */
+function ProcessCard({ p, index }: { p: typeof PROCESS[0]; index: number }) {
   const Icon = STEP_ICONS[index];
-  const isLast = index === PROCESS.length - 1;
-
   return (
-    <div
-      ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${delay} ${visible ? "visible" : ""} group relative text-center`}
-    >
-      {/* Connector to the next step (desktop only) */}
-      {!isLast && (
-        <div
-          className="pointer-events-none absolute left-full top-10 z-10 hidden -translate-x-1/2 text-[var(--muted)] opacity-30 transition-opacity duration-500 group-hover:opacity-60 md:block"
-          aria-hidden
-        >
-          <DoodleConnector down={index % 2 === 1} />
-        </div>
-      )}
-
-      {/* Icon medallion */}
-      <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center">
-        {/* Rotating dashed orbit */}
-        <svg
-          className="absolute inset-0 h-full w-full animate-spin-slow opacity-40 transition-opacity duration-300 group-hover:opacity-80"
-          viewBox="0 0 80 80"
-          fill="none"
-          aria-hidden
-        >
-          <circle
-            cx="40" cy="40" r="37"
-            stroke={p.accent}
-            strokeWidth="1.5"
-            strokeDasharray="4 7"
-            strokeLinecap="round"
-          />
+    <div className="w-full max-w-[240px] rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center shadow-[0_16px_40px_rgba(16,17,20,0.12)] dark:shadow-[0_16px_50px_rgba(0,0,0,0.4)]">
+      {/* Icon medallion — rotating dashed orbit + solid disc + number badge */}
+      <div className="relative mx-auto mb-3 flex h-16 w-16 items-center justify-center">
+        <svg className="absolute inset-0 h-full w-full animate-spin-slow opacity-40" viewBox="0 0 80 80" fill="none" aria-hidden>
+          <circle cx="40" cy="40" r="37" stroke={p.accent} strokeWidth="1.5" strokeDasharray="4 7" strokeLinecap="round" />
         </svg>
-
-        {/* Solid disc */}
         <div
-          className="relative flex h-14 w-14 items-center justify-center rounded-full border-2 bg-[var(--surface)] transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg motion-reduce:group-hover:scale-100"
+          className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 bg-[var(--surface)]"
           style={{ borderColor: p.accent, color: p.accent }}
         >
-          <span className="transition-transform duration-500 group-hover:rotate-[10deg]">
-            <Icon size={24} />
-          </span>
+          <Icon size={20} />
         </div>
-
-        {/* Step number badge */}
         <span
-          className="absolute -right-0.5 -top-0.5 flex h-7 w-7 items-center justify-center rounded-full font-display text-[11px] font-bold text-white shadow-sm"
+          className="absolute -right-0.5 -top-0.5 flex h-6 w-6 items-center justify-center rounded-full font-display text-[10px] font-bold text-white shadow-sm"
           style={{ backgroundColor: p.accent }}
         >
           {p.step}
         </span>
       </div>
 
-      <h3 className="mb-1.5 font-display text-lg font-semibold text-[var(--ink)]">{p.title}</h3>
-      <p className="mx-auto max-w-[240px] text-sm leading-relaxed text-[var(--muted)]">{p.desc}</p>
-
-      {/* Underline that grows on hover */}
-      <span
-        className="mx-auto mt-4 block h-0.5 w-0 rounded-full transition-all duration-500 group-hover:w-12"
-        style={{ backgroundColor: p.accent }}
-        aria-hidden
-      />
+      <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: p.accent }}>
+        Step {p.step}
+      </p>
+      <h3 className="mt-1 font-display text-lg font-bold text-[var(--ink)]">{p.title}</h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">{p.desc}</p>
     </div>
   );
 }
 
 function ProcessSection() {
   const { ref, visible } = useReveal();
+
   return (
-    <section id="process" className="relative py-20 md:py-28 bg-[var(--surface-2)] overflow-hidden">
+    <section id="process" className="relative py-14 md:py-20 bg-[var(--surface-2)] overflow-hidden">
       {/* Floating background doodles */}
       <div className="pointer-events-none absolute left-[8%] top-12 text-coral-500 opacity-[0.06] animate-float-slow" aria-hidden><DoodleHashtag size={54} /></div>
       <div className="pointer-events-none absolute right-[10%] top-24 text-[#F5883C] opacity-[0.07] animate-float" aria-hidden><DoodleStar size={38} /></div>
@@ -832,15 +881,15 @@ function ProcessSection() {
       <div className="pointer-events-none absolute right-[28%] bottom-24 text-coral-500 opacity-[0.05] animate-float" aria-hidden><DoodleAt size={34} /></div>
 
       <div className="relative mx-auto max-w-6xl px-5">
-        <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""} mb-16 text-center`}>
-          <p className="section-label mb-3">How it works</p>
+        <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""} mb-10 text-center`}>
+          <p className="section-label mb-2">How it works</p>
           <h2 className="font-display text-3xl font-bold tracking-tight text-[var(--ink)] md:text-4xl">
             Our 4-step approach
           </h2>
 
           {/* Hand-drawn underline that draws itself in on reveal */}
           <svg
-            className="mx-auto mt-3 h-3 w-48 text-coral-500"
+            className="mx-auto mt-2 h-3 w-48 text-coral-500"
             viewBox="0 0 200 12"
             fill="none"
             aria-hidden
@@ -856,15 +905,28 @@ function ProcessSection() {
             />
           </svg>
 
-          <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-[var(--muted)]">
+          <p className="mx-auto mt-3 max-w-lg text-base leading-relaxed text-[var(--muted)]">
             No black boxes. Every engagement runs through the same four stages, so
             you always know where things stand.
           </p>
+
+          <p className="mx-auto mt-3 hidden items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-[var(--muted)] sm:flex">
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-coral-500" aria-hidden />
+            Hover to reveal
+          </p>
         </div>
 
-        <div className="relative grid grid-cols-1 gap-12 sm:grid-cols-2 md:grid-cols-4 md:gap-8">
+        {/* Desktop/tablet — shuffled pile that fans out into the grid on hover */}
+        <LayeredStack className="hidden grid-cols-4 place-items-center gap-6 sm:grid">
           {PROCESS.map((p, i) => (
-            <ProcessStep key={p.step} p={p} index={i} delay={`reveal-delay-${i + 1}`} />
+            <ProcessCard key={p.step} p={p} index={i} />
+          ))}
+        </LayeredStack>
+
+        {/* Mobile — no hover, so just show the steps directly */}
+        <div className="grid grid-cols-1 place-items-center gap-6 sm:hidden">
+          {PROCESS.map((p, i) => (
+            <ProcessCard key={p.step} p={p} index={i} />
           ))}
         </div>
       </div>
@@ -986,18 +1048,61 @@ function ClientLogoItem({ logo }: { logo: ClientLogo }) {
   );
 }
 
-function LogoMarquee({ logos, reverse = false }: { logos: ClientLogo[]; reverse?: boolean }) {
+/* Scroll-velocity-reactive logo track — drifts at a base speed, speeds up and
+   reverses direction with page scroll velocity (same physics as the pasted
+   ScrollBasedVelocity component, adapted to loop a set of logo chips instead
+   of repeating a text string). */
+function LogoMarquee({ logos, baseVelocity = 18, reverse = false }: { logos: ClientLogo[]; baseVelocity?: number; reverse?: boolean }) {
+  const SETS = 4;
+  const [hovered, setHovered] = useState(false);
+  const [inView, setInView] = useState(false);
+  const reduceMotionRef = useRef(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const baseX = useMotionValue(0);
+  const { scrollY } = useScroll();
+  const scrollVelocity = useVelocity(scrollY);
+  const smoothVelocity = useSpring(scrollVelocity, { damping: 50, stiffness: 400 });
+  const velocityFactor = useTransform(smoothVelocity, [0, 1000], [0, 5], { clamp: false });
+  const x = useTransform(baseX, (v) => `${wrap(-100 / SETS, 0, v)}%`);
+
+  useEffect(() => {
+    reduceMotionRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
+  // Only run the rAF loop while the marquee is actually visible — otherwise
+  // two of these were spinning forever in the background on every page load.
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const direction = useRef(reverse ? -1 : 1);
+  useAnimationFrame((_t, delta) => {
+    if (hovered || !inView || reduceMotionRef.current) return;
+    let moveBy = direction.current * baseVelocity * (delta / 1000);
+
+    if (velocityFactor.get() < 0) direction.current = reverse ? 1 : -1;
+    else if (velocityFactor.get() > 0) direction.current = reverse ? -1 : 1;
+
+    moveBy += direction.current * moveBy * velocityFactor.get();
+    baseX.set(baseX.get() + moveBy);
+  });
+
   return (
-    <div className="group relative flex overflow-hidden">
-      {/* Track is duplicated so the -50% keyframe lands on an identical frame */}
-      <div
-        className={`flex w-max ${reverse ? "animate-marquee-slow" : "animate-marquee"} group-hover:[animation-play-state:paused]`}
-        style={reverse ? { animationDirection: "reverse" } : undefined}
-      >
-        {[...logos, ...logos].map((logo, i) => (
-          <ClientLogoItem key={`${logo.name}-${i}`} logo={logo} />
-        ))}
-      </div>
+    <div
+      ref={wrapperRef}
+      className="relative flex w-full overflow-hidden"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <motion.div className="flex w-max" style={{ x }}>
+        {Array.from({ length: SETS }).map((_, s) =>
+          logos.map((logo, i) => <ClientLogoItem key={`${s}-${logo.name}-${i}`} logo={logo} />),
+        )}
+      </motion.div>
     </div>
   );
 }
@@ -1026,8 +1131,8 @@ function TrustedBySection() {
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[var(--page-bg)] to-transparent md:w-32" />
 
         <div className="space-y-6 md:space-y-8">
-          <LogoMarquee logos={CLIENT_LOGOS_ROW_1} />
-          <LogoMarquee logos={CLIENT_LOGOS_ROW_2} reverse />
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_1} baseVelocity={20} />
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_2} baseVelocity={14} reverse />
         </div>
       </div>
     </section>
