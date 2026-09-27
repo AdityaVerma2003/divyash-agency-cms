@@ -37,6 +37,19 @@ export interface Client {
   clientServices?: (ClientService & { service: Service })[];
 }
 
+export interface UserSession {
+  id: string;
+  loginAt: string;
+  logoutAt: string | null;
+  durationMinutes: number | null;
+}
+
+export interface TeamActivity {
+  member: { id: string; name: string; designation: string | null; photoUrl: string | null } | null;
+  sessions: UserSession[];
+  totalActiveMinutes: number;
+}
+
 export interface Service {
   id: string;
   name: string;

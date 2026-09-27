@@ -5,6 +5,8 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { useReveal } from "@/hooks/useReveal";
+import { FlipStack, type FlipStackItem } from "@/components/FlipStack";
+import { TextMorph } from "@/components/TextMorph";
 import {
   CLIENT_LOGOS_ROW_1,
   CLIENT_LOGOS_ROW_2,
@@ -165,48 +167,48 @@ function DoodleDollar({ size = 20 }: { size?: number }) {
 }
 
 /* ── Service Icons ──────────────────────────────────────────────────────────── */
-function IconSEO() {
+function IconSEO({ size = 22 }: { size?: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <circle cx="10" cy="10" r="6" />
       <path d="M15.5 15.5L20 20" strokeWidth="2" />
       <path d="M10 7v6M7 10h6" strokeWidth="1.5" />
     </svg>
   );
 }
-function IconSMM() {
+function IconSMM({ size = 22 }: { size?: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
       <path d="M8.59 13.51l6.83 3.98M15.41 6.51L8.59 10.49" />
     </svg>
   );
 }
-function IconAds() {
+function IconAds({ size = 22 }: { size?: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
     </svg>
   );
 }
-function IconMeta() {
+function IconMeta({ size = 22 }: { size?: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
       <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3" />
     </svg>
   );
 }
-function IconWeb() {
+function IconWeb({ size = 22 }: { size?: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <rect x="2" y="3" width="20" height="15" rx="2" /><path d="M2 7h20M8 21h8M12 18v3" />
     </svg>
   );
 }
-function IconDesign() {
+function IconDesign({ size = 22 }: { size?: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <circle cx="12" cy="12" r="10" />
       <circle cx="8" cy="12" r="1.5" fill="currentColor" stroke="none" />
       <circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none" />
@@ -217,14 +219,6 @@ function IconDesign() {
 }
 
 /* ── Data ────────────────────────────────────────────────────────────────────── */
-const SERVICES = [
-  { icon: <IconSEO />, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400", name: "Search Engine Optimisation", desc: "Rank higher and get found by customers actively searching for what you offer." },
-  { icon: <IconSMM />, color: "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400", name: "Social Media Management", desc: "Content that builds real audiences and drives engagement beyond the vanity metrics." },
-  { icon: <IconAds />, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400", name: "Google Ads", desc: "Intent-driven campaigns with tight audience targeting and full conversion tracking." },
-  { icon: <IconMeta />, color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400", name: "Meta Ads", desc: "Facebook and Instagram campaigns engineered for reach, leads, and sales — not clicks." },
-  { icon: <IconWeb />, color: "bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400", name: "Web Design & Development", desc: "Fast, mobile-first websites that reflect your brand and convert visitors into customers." },
-  { icon: <IconDesign />, color: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400", name: "Graphic Design", desc: "Visual identity, social creatives, and print assets that make your brand unforgettable." },
-];
 
 const WHY = [
   { num: "01", title: "Real results, not reports.", desc: "Every campaign is tied to a revenue or lead outcome you agreed on up front. We measure what moves your business — not just what looks good in a deck.", accent: "#6366F1" },
@@ -339,7 +333,15 @@ function Hero() {
 
           <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-[var(--ink)] sm:text-5xl md:text-[3.5rem]">
             Grow Your Business{" "}
-            <span className="text-coral-500">with Data-Driven</span>{" "}
+            <span className="text-coral-500">
+              with{" "}
+              <TextMorph
+                words={["Data-Driven", "Results-Driven", "ROI-Focused", "Performance-Driven"]}
+                interval={2600}
+                morphDuration={680}
+                className="align-baseline"
+              />
+            </span>{" "}
             Marketing
           </h1>
 
@@ -364,8 +366,12 @@ function Hero() {
           </p>
         </div>
 
-        {/* Right — animated composition */}
-        <div className="relative mx-auto h-[360px] w-full max-w-sm sm:h-[480px] lg:max-w-none">
+        {/* Right — animated composition. On mobile the whole doodle/card canvas is
+            scaled down as one unit (rather than hand-tuning each element's own
+            size/position per breakpoint) so it stays one cohesive composition
+            instead of individually-shrunk pieces drifting out of alignment. */}
+        <div className="relative mx-auto h-[300px] w-full max-w-[300px] sm:h-[480px] sm:max-w-sm lg:max-w-none">
+        <div className="absolute inset-0 origin-center scale-[0.78] sm:scale-100">
 
           {/* Central coral glow */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
@@ -493,58 +499,84 @@ function Hero() {
             <HeroDashboardMockup />
           </div>
         </div>
+        </div>
       </div>
     </section>
   );
 }
 
 /* ── Services ───────────────────────────────────────────────────────────────── */
+// Same six services shown on /services, with matching hex accents and a large
+// icon in place of the original component's stock photography.
+const SERVICE_FLIP_ITEMS: FlipStackItem[] = [
+  {
+    eyebrow: "Search Engine Optimisation",
+    title: "Rank higher. Get found first.",
+    description: "We audit your entire digital footprint and build a 6-month execution plan tied to search intent — white hat only.",
+    icon: <IconSEO />,
+    background: "#059669",
+  },
+  {
+    eyebrow: "Social Media Management",
+    title: "Content that builds real audiences.",
+    description: "20–22 posts a month across the platforms that matter, with a content calendar and reporting your team can actually use.",
+    icon: <IconSMM />,
+    background: "#0284C7",
+  },
+  {
+    eyebrow: "Google Ads",
+    title: "Intent-driven. Conversion-focused.",
+    description: "Tight audience targeting and full conversion tracking, so every rupee of spend is tied to a measurable outcome.",
+    icon: <IconAds />,
+    background: "#D97706",
+  },
+  {
+    eyebrow: "Meta Ads",
+    title: "Reach. Leads. Sales — not just clicks.",
+    description: "Facebook and Instagram campaigns engineered around what actually grows your business, not vanity engagement.",
+    icon: <IconMeta />,
+    background: "#7C3AED",
+  },
+  {
+    eyebrow: "Web Design & Development",
+    title: "Fast. Mobile-first. Built to convert.",
+    description: "Websites that reflect your brand and turn visitors into customers, not just another portfolio piece.",
+    icon: <IconWeb />,
+    background: "#0891B2",
+  },
+  {
+    eyebrow: "Graphic Design",
+    title: "Visual identity that stops the scroll.",
+    description: "Social creatives, brand identity, and print assets that make your business unforgettable in a crowded feed.",
+    icon: <IconDesign />,
+    background: "#DB2777",
+  },
+];
+
 function ServicesSection() {
-  const { ref, visible } = useReveal();
   return (
-    <section id="services" className="relative py-20 md:py-28 bg-[var(--surface-2)] overflow-hidden">
-      {/* Background doodles */}
-      <div className="pointer-events-none absolute top-8 right-8 text-coral-500 opacity-[0.04]" aria-hidden><DoodleChart size={80} /></div>
-      <div className="pointer-events-none absolute bottom-8 left-8 text-[#2DBFA0] opacity-[0.04]" aria-hidden><DoodleTarget size={64} /></div>
-      <div className="pointer-events-none absolute top-1/2 right-1/4 text-[#5B7CF7] opacity-[0.03]" aria-hidden><DoodleMagnifier size={72} /></div>
-
-      <div className="mx-auto max-w-6xl px-5">
-        <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""} text-center mb-14`}>
-          <p className="section-label mb-3">What we do</p>
-          <h2 className="font-display text-3xl font-bold text-[var(--ink)] md:text-4xl">
-            Six services. One growth partner.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[var(--muted)]">
-            Everything your business needs to win online — strategy, execution, and reporting, all joined up.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {SERVICES.map((svc, i) => (
-            <ServiceCard key={svc.name} svc={svc} delay={`reveal-delay-${i + 1}`} />
-          ))}
-        </div>
-
-        <div className="mt-10 text-center">
-          <Link href="/services" className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-6 py-2.5 text-sm font-semibold text-[var(--ink)] hover:border-coral-500 hover:text-coral-500 transition-colors">
-            Explore all services →
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ServiceCard({ svc, delay }: { svc: typeof SERVICES[0]; delay: string }) {
-  const { ref, visible } = useReveal();
-  return (
-    <div ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${delay} ${visible ? "visible" : ""} group rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/30 motion-reduce:translate-y-0`}>
-      <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl ${svc.color} transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:translate-y-0`}>
-        {svc.icon}
-      </div>
-      <h3 className="mb-2 font-display text-base font-semibold text-[var(--ink)]">{svc.name}</h3>
-      <p className="text-sm leading-relaxed text-[var(--muted)]">{svc.desc}</p>
+    <div id="services">
+      <FlipStack
+        items={SERVICE_FLIP_ITEMS}
+        hint="Scroll to explore"
+        heading="Six Services. One Growth Partner."
+        footer={
+          <div className="text-center">
+            <p className="font-display text-[clamp(30px,4.5vw,56px)] font-extrabold leading-[1.05] tracking-tight text-[var(--ink)]">
+              Everything your business needs to win online.
+            </p>
+            <p className="mx-auto mt-4 max-w-lg text-[var(--muted)]">
+              Strategy, execution, and reporting — all joined up under one team.
+            </p>
+            <Link
+              href="/services"
+              className="mt-8 inline-flex items-center gap-2 rounded-full bg-coral-500 px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-coral-600"
+            >
+              Explore all services →
+            </Link>
+          </div>
+        }
+      />
     </div>
   );
 }
@@ -935,15 +967,21 @@ function WorkTeaserSection() {
 
 function ClientLogoItem({ logo }: { logo: ClientLogo }) {
   return (
-    <div className="flex h-20 w-36 flex-shrink-0 items-center justify-center px-4 sm:h-24 sm:w-44">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={clientLogoSrc(logo.file)}
-        alt={logo.name}
-        title={logo.name}
-        loading="lazy"
-        className="max-h-full max-w-full object-contain transition-transform duration-300 hover:scale-105 motion-reduce:hover:scale-100"
-      />
+    <div className="flex h-24 w-44 flex-shrink-0 items-center justify-center px-2 sm:h-28 sm:w-52">
+      {/* Uniform white chip — most of these client logos have their own solid-color
+          badge background baked into the artwork, so a consistent white card
+          behind every one (rather than fighting each source file) is what
+          actually reads as intentional across the whole row. */}
+      <div className="flex h-full w-full items-center justify-center rounded-xl bg-white p-3 shadow-sm">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={clientLogoSrc(logo.id)}
+          alt={logo.name}
+          title={logo.name}
+          loading="lazy"
+          className="max-h-full max-w-full object-contain transition-transform duration-300 hover:scale-105 motion-reduce:hover:scale-100"
+        />
+      </div>
     </div>
   );
 }

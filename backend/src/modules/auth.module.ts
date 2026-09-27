@@ -8,6 +8,7 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jw
 import { ApiError } from "../utils/apiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { authenticate } from "../middleware/auth.middleware";
+import { verifyAccessToken } from "../lib/jwt";
 import { sendEmail } from "../lib/email";
 
 const router = Router();
@@ -65,6 +66,13 @@ router.post(
         clientStatus,
       },
     });
+
+    // Record the in-time for staff "active time" tracking — fire-and-forget,
+    // never block the login response on it. Only staff sessions matter for
+    // this feature (clients viewing their own portal usage isn't tracked).
+    if (user.role !== "CLIENT") {
+      prisma.userSession.create({ data: { userId: user.id } }).catch(() => undefined);
+    }
   })
 );
 
@@ -188,10 +196,37 @@ router.post(
 );
 
 // POST /api/auth/logout
-router.post("/logout", (_req, res) => {
-  res.clearCookie("refreshToken", REFRESH_COOKIE_OPTIONS);
-  res.status(204).send();
-});
+// Best-effort: decodes the access token if present to record the out-time,
+// but always clears the cookie and succeeds even if the token is missing,
+// expired, or belongs to a CLIENT (whose sessions aren't tracked).
+router.post(
+  "/logout",
+  asyncHandler(async (req, res) => {
+    const header = req.headers.authorization;
+    const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
+
+    if (token) {
+      try {
+        const payload = verifyAccessToken(token);
+        const openSession = await prisma.userSession.findFirst({
+          where: { userId: payload.userId, logoutAt: null },
+          orderBy: { loginAt: "desc" },
+        });
+        if (openSession) {
+          await prisma.userSession.update({
+            where: { id: openSession.id },
+            data: { logoutAt: new Date() },
+          });
+        }
+      } catch {
+        // Expired/invalid token — nothing to close, just proceed to clear the cookie
+      }
+    }
+
+    res.clearCookie("refreshToken", REFRESH_COOKIE_OPTIONS);
+    res.status(204).send();
+  })
+);
 
 // GET /api/auth/me
 router.get(

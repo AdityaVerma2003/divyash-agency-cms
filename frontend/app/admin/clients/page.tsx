@@ -19,6 +19,7 @@ interface NewClientForm {
   gstin: string;
   address: string;
   portalPassword: string;
+  accountManagerId: string;
 }
 
 const EMPTY_FORM: NewClientForm = {
@@ -29,7 +30,14 @@ const EMPTY_FORM: NewClientForm = {
   gstin: "",
   address: "",
   portalPassword: "",
+  accountManagerId: "",
 };
+
+interface TeamOption {
+  id: string;
+  name: string;
+  designation?: string | null;
+}
 
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
@@ -89,6 +97,7 @@ export default function AdminClientsPage() {
   const router = useRouter();
   const { success, error: toastError, warning } = useToast();
   const [clients, setClients] = useState<Client[] | null>(null);
+  const [teamOptions, setTeamOptions] = useState<TeamOption[]>([]);
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
 
@@ -101,6 +110,7 @@ export default function AdminClientsPage() {
       .get<Client[]>("/clients", getAccessToken())
       .then(setClients)
       .catch((err: Error) => toastError("Could not load clients", err.message));
+    api.get<TeamOption[]>("/users", getAccessToken()).then(setTeamOptions).catch(() => undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -128,6 +138,7 @@ export default function AdminClientsPage() {
         ...(form.gstin.trim() && { gstin: form.gstin.trim() }),
         ...(form.address.trim() && { address: form.address.trim() }),
         ...(form.portalPassword.trim() && { portalPassword: form.portalPassword.trim() }),
+        ...(form.accountManagerId && { accountManagerId: form.accountManagerId }),
       };
       const created = await api.post<Client>("/clients", payload, getAccessToken());
       success(
@@ -379,6 +390,23 @@ export default function AdminClientsPage() {
                   className={`${inputClass("address")} resize-none`}
                   {...field("address")}
                 />
+              </label>
+
+              <label className="block text-sm sm:col-span-2">
+                <span className="mb-1 block text-[var(--muted)]">Assigned team member <span className="font-normal">(optional)</span></span>
+                <select
+                  value={form.accountManagerId}
+                  onChange={(e) => setForm((p) => ({ ...p, accountManagerId: e.target.value }))}
+                  className={inputClass("accountManagerId")}
+                >
+                  <option value="">Unassigned</option>
+                  {teamOptions.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}{t.designation ? ` — ${t.designation}` : ""}</option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-[var(--muted)]">
+                  Who this client's project is assigned to. Can be changed later from the client's page.
+                </span>
               </label>
             </div>
 

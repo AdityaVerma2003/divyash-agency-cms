@@ -17,6 +17,12 @@ interface TeamMember {
   mobile?: string | null;
   designation?: string | null;
   createdAt: string;
+  managedClients?: { id: string; companyName: string }[];
+}
+
+interface ClientOption {
+  id: string;
+  companyName: string;
 }
 
 const ROLE_CONFIG = {
@@ -46,6 +52,7 @@ interface InviteForm {
   email: string;
   role: "ACCOUNT_MANAGER" | "SUPER_ADMIN";
   designation: string;
+  clientIds: string[];
 }
 
 const EMPTY_FORM: InviteForm = {
@@ -53,11 +60,13 @@ const EMPTY_FORM: InviteForm = {
   email: "",
   role: "ACCOUNT_MANAGER",
   designation: "",
+  clientIds: [],
 };
 
 export default function AdminTeamPage() {
   const { success, error: toastError, warning } = useToast();
   const [members, setMembers] = useState<TeamMember[] | null>(null);
+  const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<InviteForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
@@ -75,11 +84,21 @@ export default function AdminTeamPage() {
   useEffect(() => {
     loadMembers();
     fetchCurrentUser().then((u) => setCurrentUserRole(u?.role ?? null)).catch(() => null);
+    api.get<ClientOption[]>("/clients", getAccessToken()).then(setClientOptions).catch(() => undefined);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openModal() {
     setForm(EMPTY_FORM);
     setShowModal(true);
+  }
+
+  function toggleClient(clientId: string) {
+    setForm((p) => ({
+      ...p,
+      clientIds: p.clientIds.includes(clientId)
+        ? p.clientIds.filter((id) => id !== clientId)
+        : [...p.clientIds, clientId],
+    }));
   }
 
   async function handleInvite(e: React.FormEvent) {
@@ -91,7 +110,8 @@ export default function AdminTeamPage() {
     setSubmitting(true);
     try {
       await api.post<TeamMember>("/users", form, getAccessToken());
-      success("Member added", `${form.name} has been added. A setup email is being sent to ${form.email}.`);
+      const clientNote = form.clientIds.length > 0 ? ` Assigned to ${form.clientIds.length} client${form.clientIds.length !== 1 ? "s" : ""}.` : "";
+      success("Member added", `${form.name} has been added. A setup email is being sent to ${form.email}.${clientNote}`);
       setShowModal(false);
       loadMembers();
     } catch (err) {
@@ -196,6 +216,18 @@ export default function AdminTeamPage() {
                   <p>Joined {formatDate(m.createdAt)}</p>
                 </div>
 
+                {/* Assigned clients */}
+                {m.managedClients && m.managedClients.length > 0 && (
+                  <div className="rounded-lg bg-[var(--surface-2)] px-2.5 py-2">
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                      Working on {m.managedClients.length} client{m.managedClients.length !== 1 ? "s" : ""}
+                    </p>
+                    <p className="text-xs text-[var(--ink)] truncate">
+                      {m.managedClients.map((c) => c.companyName).join(", ")}
+                    </p>
+                  </div>
+                )}
+
                 {/* Role badge + actions */}
                 <div className="flex items-center justify-between mt-auto pt-2 border-t border-[var(--border)]">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${roleCfg.bg} ${roleCfg.text}`}>
@@ -297,6 +329,32 @@ export default function AdminTeamPage() {
                   Controls what they can see and do inside the portal.
                 </span>
               </label>
+
+              <div className="block text-sm">
+                <span className="mb-1 block text-[var(--muted)]">Assign to client(s) <span className="font-normal">(optional)</span></span>
+                {clientOptions.length === 0 ? (
+                  <p className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 text-xs text-[var(--muted)]">
+                    No clients yet — you can assign this teammate to a client later from the client's page.
+                  </p>
+                ) : (
+                  <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+                    {clientOptions.map((c) => (
+                      <label key={c.id} className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-[var(--ink)] hover:bg-[var(--surface-2)]">
+                        <input
+                          type="checkbox"
+                          checked={form.clientIds.includes(c.id)}
+                          onChange={() => toggleClient(c.id)}
+                          className="h-4 w-4 rounded border-[var(--border)] text-coral-500 focus:ring-coral-500"
+                        />
+                        {c.companyName}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <span className="mt-1 block text-xs text-[var(--muted)]">
+                  They&apos;ll be set as the assigned team member for each client selected — this replaces any teammate currently assigned to that client.
+                </span>
+              </div>
 
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-xs text-[var(--muted)] leading-relaxed">
                 <strong className="text-[var(--ink)]">How it works:</strong> {form.name.trim() || "They"} will receive an invitation email to set their password. After logging in, they complete the rest of their profile (photo, contact details).

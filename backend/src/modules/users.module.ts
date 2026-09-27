@@ -70,6 +70,7 @@ router.get(
         mobile: true,
         designation: true,
         createdAt: true,
+        managedClients: { select: { id: true, companyName: true } },
       },
       orderBy: { createdAt: "asc" },
     });
@@ -82,17 +83,24 @@ router.post(
   "/",
   authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
-    const { name, email, role, designation } = z
+    const { name, email, role, designation, clientIds } = z
       .object({
         name: z.string().min(1),
         email: z.string().email(),
         role: z.enum([Role.ACCOUNT_MANAGER, Role.SUPER_ADMIN]),
         designation: z.string().min(1).max(60).optional(),
+        // Clients this teammate will be assigned to work on (optional, set at invite time)
+        clientIds: z.array(z.string().uuid()).optional(),
       })
       .parse(req.body);
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw ApiError.conflict("A user with this email already exists");
+
+    if (clientIds && clientIds.length > 0) {
+      const foundCount = await prisma.client.count({ where: { id: { in: clientIds } } });
+      if (foundCount !== clientIds.length) throw ApiError.badRequest("One or more selected clients were not found");
+    }
 
     const randomPasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 12);
 
@@ -116,6 +124,12 @@ router.post(
         where: { id: created.id },
         data: { resetToken: tokenHash, resetTokenExpiresAt: expiresAt },
       });
+      if (clientIds && clientIds.length > 0) {
+        await tx.client.updateMany({
+          where: { id: { in: clientIds } },
+          data: { accountManagerId: created.id },
+        });
+      }
       return created;
     });
 
@@ -151,7 +165,7 @@ router.post(
       action: "CREATE",
       entity: "User",
       entityId: user.id,
-      meta: { name, email, role, designation },
+      meta: { name, email, role, designation, clientIds },
     }).catch(() => undefined);
   })
 );
@@ -260,6 +274,9 @@ router.delete(
       prisma.notification.deleteMany({ where: { userId: req.params.id } }),
       prisma.auditLog.updateMany({ where: { userId: req.params.id }, data: { userId: null } }),
       prisma.blogPost.updateMany({ where: { authorId: req.params.id }, data: { authorId: req.user!.userId } }),
+      // Unassign any clients this teammate was managing — they're left unassigned
+      // rather than silently reassigned, so an admin has to consciously re-pick.
+      prisma.client.updateMany({ where: { accountManagerId: req.params.id }, data: { accountManagerId: null } }),
       prisma.user.delete({ where: { id: req.params.id } }),
     ]);
 

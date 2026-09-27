@@ -4,6 +4,7 @@ const NAV_ITEMS = [
   { label: "Dashboard", href: "/client/dashboard" },
   { label: "Invoices", href: "/client/invoices" },
   { label: "Reports", href: "/client/reports" },
+  { label: "Team Activity", href: "/client/team-activity" },
 ];
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {

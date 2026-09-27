@@ -110,6 +110,7 @@ interface EditForm {
   phone: string;
   gstin: string;
   address: string;
+  accountManagerId: string;
 }
 
 function toEditForm(client: Client): EditForm {
@@ -120,7 +121,14 @@ function toEditForm(client: Client): EditForm {
     phone: client.phone ?? "",
     gstin: client.gstin ?? "",
     address: client.address ?? "",
+    accountManagerId: client.accountManagerId ?? "",
   };
+}
+
+interface TeamOption {
+  id: string;
+  name: string;
+  designation?: string | null;
 }
 
 interface EditClientModalProps {
@@ -134,6 +142,11 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
   const [errors, setErrors] = useState<Partial<Record<keyof EditForm, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [teamOptions, setTeamOptions] = useState<TeamOption[]>([]);
+
+  useEffect(() => {
+    api.get<TeamOption[]>("/users", getAccessToken()).then(setTeamOptions).catch(() => undefined);
+  }, []);
 
   function validate(): boolean {
     const e: Partial<Record<keyof EditForm, string>> = {};
@@ -161,6 +174,8 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
         ...(form.phone.trim() && { phone: form.phone.trim() }),
         ...(form.gstin.trim() && { gstin: form.gstin.trim() }),
         ...(form.address.trim() && { address: form.address.trim() }),
+        // "" means the admin picked "Unassigned" — send null to explicitly clear it
+        accountManagerId: form.accountManagerId || null,
       };
       const updated = await api.patch<Client>(`/clients/${client.id}`, payload, getAccessToken());
       onSaved(updated);
@@ -248,6 +263,20 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
           <label className="block text-sm sm:col-span-2">
             <span className="mb-1 block text-[var(--muted)]">Address</span>
             <textarea rows={2} className={`${inp("address")} resize-none`} {...field("address")} />
+          </label>
+
+          <label className="block text-sm sm:col-span-2">
+            <span className="mb-1 block text-[var(--muted)]">Assigned team member</span>
+            <select
+              value={form.accountManagerId}
+              onChange={(e) => setForm((p) => ({ ...p, accountManagerId: e.target.value }))}
+              className={inp("accountManagerId")}
+            >
+              <option value="">Unassigned</option>
+              {teamOptions.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}{t.designation ? ` — ${t.designation}` : ""}</option>
+              ))}
+            </select>
           </label>
         </div>
 

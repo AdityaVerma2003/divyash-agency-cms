@@ -122,6 +122,19 @@ model User {
   auditLogs      AuditLog[]
   notifications  Notification[]
   blogPosts      BlogPost[]
+  sessions       UserSession[]
+}
+
+// Tracks portal login/logout so a client can see how much time their
+// assigned team member spent active, and their in-time/out-time per session.
+model UserSession {
+  id       String    @id @default(uuid())
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginAt  DateTime  @default(now())
+  logoutAt DateTime?
+
+  @@index([userId])
 }
 
 model Client {
@@ -138,7 +151,7 @@ model Client {
   suspendedAt       DateTime?
   suspendedBy       String?
   accountManagerId  String?
-  accountManager    User?        @relation("AccountManager", fields: [accountManagerId], references: [id])
+  accountManager    User?        @relation("AccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
   onboardedAt       DateTime     @default(now())
   agreementDetails  String?
   createdAt         DateTime     @default(now())

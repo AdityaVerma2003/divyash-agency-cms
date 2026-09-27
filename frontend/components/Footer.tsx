@@ -159,7 +159,7 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/8 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/8 text-white/60 transition-all duration-300 hover:-translate-y-0.5 hover:bg-coral-500/20 hover:text-coral-400"
                   style={{ background: "rgba(255,255,255,0.06)" }}
                 >
                   {icon}
@@ -170,19 +170,25 @@ export default function Footer() {
 
           {/* Col 2 — Explore */}
           <div>
-            <p className="mb-5 text-xs font-bold uppercase tracking-widest text-white/30">Explore</p>
+            <p className="mb-5 text-xs font-bold uppercase tracking-widest text-white/55">Explore</p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
               <ul className="space-y-2.5">
                 {EXPLORE_COL1.map(({ label, href }) => (
                   <li key={label}>
-                    <Link href={href} className="transition-colors hover:text-white">{label}</Link>
+                    <Link href={href} className="group inline-flex items-center gap-2 text-white/70 transition-colors duration-300 hover:text-coral-400">
+                      <span className="h-1 w-1 flex-shrink-0 rounded-full bg-white/25 transition-all duration-300 group-hover:w-3 group-hover:bg-coral-400" aria-hidden />
+                      {label}
+                    </Link>
                   </li>
                 ))}
               </ul>
               <ul className="space-y-2.5">
                 {EXPLORE_COL2.map(({ label, href }) => (
                   <li key={label}>
-                    <Link href={href} className="transition-colors hover:text-white">{label}</Link>
+                    <Link href={href} className="group inline-flex items-center gap-2 text-white/70 transition-colors duration-300 hover:text-coral-400">
+                      <span className="h-1 w-1 flex-shrink-0 rounded-full bg-white/25 transition-all duration-300 group-hover:w-3 group-hover:bg-coral-400" aria-hidden />
+                      {label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -191,11 +197,11 @@ export default function Footer() {
 
           {/* Col 3 — Contact */}
           <div>
-            <p className="mb-5 text-xs font-bold uppercase tracking-widest text-white/30">Contact</p>
+            <p className="mb-5 text-xs font-bold uppercase tracking-widest text-white/55">Contact</p>
             <ul className="space-y-3 text-sm">
               <li>
-                <a href="tel:+918810376026" className="flex items-start gap-3 transition-colors hover:text-white group">
-                  <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/8 text-white/50 group-hover:bg-white/15 group-hover:text-white transition-colors" style={{ background: "rgba(255,255,255,0.06)" }}>
+                <a href="tel:+918810376026" className="flex items-start gap-3 text-white/75 transition-colors duration-300 hover:text-coral-400 group">
+                  <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/8 text-white/50 transition-all duration-300 group-hover:bg-coral-500/20 group-hover:text-coral-400 group-hover:scale-110" style={{ background: "rgba(255,255,255,0.06)" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.68h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
                     </svg>
@@ -204,8 +210,8 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="tel:+919266452049" className="flex items-start gap-3 transition-colors hover:text-white group">
-                  <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/8 text-white/50 group-hover:bg-white/15 group-hover:text-white transition-colors" style={{ background: "rgba(255,255,255,0.06)" }}>
+                <a href="tel:+919266452049" className="flex items-start gap-3 text-white/75 transition-colors duration-300 hover:text-coral-400 group">
+                  <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/8 text-white/50 transition-all duration-300 group-hover:bg-coral-500/20 group-hover:text-coral-400 group-hover:scale-110" style={{ background: "rgba(255,255,255,0.06)" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.68h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
                     </svg>
@@ -214,8 +220,8 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="mailto:info@divyashdigital.co.in" className="flex items-start gap-3 transition-colors hover:text-white group">
-                  <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/8 text-white/50 group-hover:bg-white/15 group-hover:text-white transition-colors" style={{ background: "rgba(255,255,255,0.06)" }}>
+                <a href="mailto:info@divyashdigital.co.in" className="flex items-start gap-3 text-white/75 transition-colors duration-300 hover:text-coral-400 group">
+                  <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/8 text-white/50 transition-all duration-300 group-hover:bg-coral-500/20 group-hover:text-coral-400 group-hover:scale-110" style={{ background: "rgba(255,255,255,0.06)" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                       <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                       <polyline points="22,6 12,13 2,6" />
@@ -229,7 +235,7 @@ export default function Footer() {
 
           {/* Col 4 — WhatsApp CTA */}
           <div>
-            <p className="mb-5 text-xs font-bold uppercase tracking-widest text-white/30">WhatsApp Us</p>
+            <p className="mb-5 text-xs font-bold uppercase tracking-widest text-white/55">WhatsApp Us</p>
             <p className="mb-5 text-sm leading-relaxed text-white/50">
               Chat with our team directly on WhatsApp. We&apos;re available Mon–Sat, 10am–6pm IST.
             </p>
@@ -245,7 +251,6 @@ export default function Footer() {
               </svg>
               Chat on WhatsApp
             </a>
-            <p className="mt-3 text-xs text-white/30">+91 88103 76026</p>
           </div>
         </div>
       </div>
@@ -271,11 +276,13 @@ export default function Footer() {
 
       {/* Copyright bar */}
       <div className="border-t border-white/8" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-        <div className="mx-auto max-w-7xl px-5 py-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-xs text-white/25">
+        <div className="mx-auto max-w-7xl px-5 py-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-xs text-white/45">
           <p>© Copyright {new Date().getFullYear()} Divyash Digital Marketing Agency. All Rights Reserved.</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {TERMS_LINKS.map(({ label, href }) => (
-              <Link key={label} href={href} className="transition-colors hover:text-white/60">{label}</Link>
+              <Link key={label} href={href} className="relative transition-colors duration-300 hover:text-coral-400 after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-0 after:bg-coral-400 after:transition-all after:duration-300 hover:after:w-full">
+                {label}
+              </Link>
             ))}
           </div>
         </div>

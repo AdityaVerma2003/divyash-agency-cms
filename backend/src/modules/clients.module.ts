@@ -19,7 +19,8 @@ const clientInputSchema = z.object({
   phone: z.string().optional(),
   gstin: z.string().optional(),
   address: z.string().optional(),
-  accountManagerId: z.string().uuid().optional(),
+  // null explicitly clears the assignment; omitted leaves it untouched
+  accountManagerId: z.string().uuid().nullable().optional(),
   portalPassword: z.string().min(8).optional(), // if set, also creates a portal User account
 });
 
@@ -60,12 +61,22 @@ router.get(
   })
 );
 
+/** Throws if `accountManagerId` is set but doesn't refer to a real, non-CLIENT team member. */
+async function assertValidAccountManager(accountManagerId: string | null | undefined) {
+  if (!accountManagerId) return;
+  const manager = await prisma.user.findUnique({ where: { id: accountManagerId } });
+  if (!manager || manager.role === Role.CLIENT) {
+    throw ApiError.badRequest("Selected team member is invalid");
+  }
+}
+
 // POST /api/clients — admin only
 router.post(
   "/",
   authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
   asyncHandler(async (req, res) => {
     const { portalPassword, ...clientData } = clientInputSchema.parse(req.body);
+    await assertValidAccountManager(clientData.accountManagerId);
 
     // Check if a User with this email already exists
     if (portalPassword) {
@@ -73,7 +84,10 @@ router.post(
       if (existing) throw new ApiError(409, "A portal account with this email already exists");
     }
 
-    const client = await prisma.client.create({ data: clientData });
+    const client = await prisma.client.create({
+      data: clientData,
+      include: { accountManager: { select: { id: true, name: true } } },
+    });
 
     let portalUser: { id: string } | null = null;
     if (portalPassword) {
@@ -129,9 +143,11 @@ router.patch(
   authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
   asyncHandler(async (req, res) => {
     const data = clientInputSchema.partial().parse(req.body);
+    await assertValidAccountManager(data.accountManagerId);
     const client = await prisma.client.update({
       where: { id: req.params.clientId },
       data,
+      include: { accountManager: { select: { id: true, name: true } } },
     });
     res.json(client);
   })
@@ -259,6 +275,76 @@ router.delete(
     });
 
     res.status(204).send();
+  })
+);
+
+/** Shared by the admin-facing route (by clientId param) and the client-portal route (by session). */
+async function getTeamActivity(clientId: string) {
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: {
+      accountManager: {
+        select: { id: true, name: true, designation: true, photoUrl: true },
+      },
+    },
+  });
+  if (!client) throw ApiError.notFound("Client not found");
+
+  if (!client.accountManager) {
+    return { member: null, sessions: [], totalActiveMinutes: 0 };
+  }
+
+  const sessions = await prisma.userSession.findMany({
+    where: { userId: client.accountManager.id },
+    orderBy: { loginAt: "desc" },
+    take: 50,
+  });
+
+  // Only closed sessions count toward total active time — an open session (no
+  // logoutAt) means they're either still online or simply closed the tab
+  // without logging out, and we don't want to guess a fake duration for that.
+  const totalActiveMinutes = sessions.reduce((sum, s) => {
+    if (!s.logoutAt) return sum;
+    return sum + Math.round((s.logoutAt.getTime() - s.loginAt.getTime()) / 60000);
+  }, 0);
+
+  return {
+    member: client.accountManager,
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      loginAt: s.loginAt,
+      logoutAt: s.logoutAt,
+      durationMinutes: s.logoutAt ? Math.round((s.logoutAt.getTime() - s.loginAt.getTime()) / 60000) : null,
+    })),
+    totalActiveMinutes,
+  };
+}
+
+// GET /api/clients/:clientId/team-activity — the assigned team member's portal
+// session history (in-time/out-time + active duration). Admin/account manager
+// can view any client's; a CLIENT is restricted to their own via scopeToOwnClient.
+router.get(
+  "/:clientId/team-activity",
+  scopeToOwnClient,
+  asyncHandler(async (req, res) => {
+    res.json(await getTeamActivity(req.params.clientId));
+  })
+);
+
+// ── Client portal router (/api/portal/team-activity) ──────────────────────────
+// Mirrors the pattern in clientReports.module.ts: CLIENT-only, scoped to their
+// own clientId from the session rather than a URL param.
+
+export const portalTeamActivityRouter = Router();
+portalTeamActivityRouter.use(authenticate);
+
+portalTeamActivityRouter.get(
+  "/",
+  asyncHandler(async (req, res) => {
+    if (req.user!.role !== Role.CLIENT) throw ApiError.forbidden("Access denied");
+    const clientId = req.user!.clientId;
+    if (!clientId) throw ApiError.forbidden("No client associated with this account");
+    res.json(await getTeamActivity(clientId));
   })
 );
 

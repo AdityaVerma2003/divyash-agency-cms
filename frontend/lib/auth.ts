@@ -28,7 +28,8 @@ export async function login(email: string, password: string) {
 }
 
 export async function logout() {
-  await api.post("/auth/logout", {}).catch(() => undefined);
+  // Token is sent so the backend can record the out-time for staff session tracking
+  await api.post("/auth/logout", {}, getAccessToken()).catch(() => undefined);
   clearAccessToken();
 }
 

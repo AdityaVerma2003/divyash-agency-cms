@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { useReveal } from "@/hooks/useReveal";
+import { HoverTransition } from "@/components/HoverTransition";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
@@ -48,7 +49,7 @@ function Avatar({ member, large }: { member: TeamMember; large?: boolean }) {
   );
 }
 
-function SocialIcon({ href, type }: { href: string; type: string }) {
+function SocialIcon({ href, type, light }: { href: string; type: string; light?: boolean }) {
   const icons: Record<string, JSX.Element> = {
     instagram: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -87,9 +88,21 @@ function SocialIcon({ href, type }: { href: string; type: string }) {
   if (!icon) return null;
   return (
     <a href={href} target="_blank" rel="noopener noreferrer"
-      className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--muted)] hover:text-coral-500 hover:bg-coral-50 dark:hover:bg-coral-900/20 transition-colors">
+      className={
+        light
+          ? "flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-white transition-colors hover:bg-white/25"
+          : "flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--muted)] hover:text-coral-500 hover:bg-coral-50 dark:hover:bg-coral-900/20 transition-colors"
+      }>
       {icon}
     </a>
+  );
+}
+
+function LinkedInGlyph({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+    </svg>
   );
 }
 
@@ -123,59 +136,69 @@ function DefaultAvatar() {
 
 function FounderCard({ founder, reverse }: { founder: Founder; reverse?: boolean }) {
   const { ref, visible } = useReveal();
-  return (
-    <div
-      ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${visible ? "visible" : ""} grid grid-cols-1 items-start gap-8 sm:grid-cols-2`}
-    >
-      <div className={`aspect-[4/5] w-full overflow-hidden rounded-3xl border border-[var(--border)] ${reverse ? "sm:order-2" : ""}`}>
-        {founder.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={founder.photoUrl} alt={founder.name} className="h-full w-full object-cover" />
-        ) : (
-          <DefaultAvatar />
-        )}
-      </div>
 
-      {/* Offset down from the photo's top edge — gives the name/title room to breathe
-          rather than sitting centered against the full portrait height */}
-      <div className={`sm:pt-10 md:pt-8 ${reverse ? "sm:order-1" : ""}`}>
-        <p className="font-script text-5xl  leading-tight text-[var(--ink)]">
-          {founder.name}
-        </p>
-        <p className="mt-1.5 text-sm font-semibold text-coral-500">{founder.title}</p>
-        <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-[var(--muted)]">
-          {founder.tags.map((tag, i) => (
-            <span key={tag} className="flex items-center gap-2">
-              {i > 0 && <span className="text-[var(--border)]">|</span>}
-              {tag}
-            </span>
-          ))}
-        </p>
-        {founder.linkedin ? (
-          <a
-            href={founder.linkedin}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-5 flex h-9 w-9 items-center justify-center rounded-lg bg-coral-500 text-white transition-colors hover:bg-coral-600"
-            aria-label={`${founder.name} on LinkedIn`}
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-            </svg>
-          </a>
-        ) : (
-          <span
-            className="mt-5 flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--muted)] opacity-50"
-            title="Add a LinkedIn link"
-            aria-hidden
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-            </svg>
-          </span>
-        )}
+  const face = (
+    <div className="relative h-full w-full">
+      {founder.photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={founder.photoUrl} alt={founder.name} className="h-full w-full object-cover" />
+      ) : (
+        <DefaultAvatar />
+      )}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent p-7 pt-20">
+        <p className="font-script text-4xl leading-none text-white">{founder.name}</p>
+        <p className="mt-2 text-sm font-semibold text-white/85">{founder.title}</p>
       </div>
+    </div>
+  );
+
+  const hoverFace = (
+    <div className="flex h-full w-full flex-col justify-center gap-5 bg-gradient-to-br from-coral-500 to-[#5B7CF7] p-8 text-white">
+      <div>
+        <p className="font-script text-4xl leading-none">{founder.name}</p>
+        <p className="mt-2 text-sm font-semibold text-white/85">{founder.title}</p>
+      </div>
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-white/80">
+        {founder.tags.map((tag, i) => (
+          <span key={tag} className="flex items-center gap-2">
+            {i > 0 && <span className="text-white/30">|</span>}
+            {tag}
+          </span>
+        ))}
+      </p>
+      {founder.linkedin ? (
+        <a
+          href={founder.linkedin}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15 text-white transition-colors hover:bg-white/25"
+          aria-label={`${founder.name} on LinkedIn`}
+        >
+          <LinkedInGlyph />
+        </a>
+      ) : (
+        <span
+          className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-white/60"
+          title="Add a LinkedIn link"
+          aria-hidden
+        >
+          <LinkedInGlyph />
+        </span>
+      )}
+    </div>
+  );
+
+  return (
+    <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${visible ? "visible" : ""}`}>
+      <HoverTransition
+        effect="curtain"
+        direction={reverse ? "left" : "right"}
+        duration={0.6}
+        label={`${founder.name} — ${founder.title}`}
+        className="aspect-[4/5] w-full rounded-3xl border border-[var(--border)] shadow-sm"
+        defaultComponent={face}
+        hoverComponent={hoverFace}
+      />
     </div>
   );
 }
@@ -184,7 +207,7 @@ function FoundersSection() {
   return (
     <section className="mx-auto max-w-5xl px-5 pb-20">
       <p className="section-label mb-10 text-lg text-center">Meet the Founders</p>
-      <div className="space-y-16">
+      <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
         {FOUNDERS.map((f, i) => (
           <FounderCard key={f.name} founder={f} reverse={i % 2 === 1} />
         ))}
@@ -193,52 +216,54 @@ function FoundersSection() {
   );
 }
 
-function LeaderCard({ member }: { member: TeamMember }) {
+/** Shared, smaller-than-Founders card for both Leadership and the rest of the
+    team — deliberately one size tier below FounderCard's big HoverTransition. */
+function TeamHoverCard({ member, delay }: { member: TeamMember; delay?: string }) {
   const { ref, visible } = useReveal();
   const socials = parseSocials(member.socialLinks);
-  return (
-    <div
-      ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${visible ? "visible" : ""} flex flex-col sm:flex-row items-start sm:items-center gap-6 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm`}
-    >
-      <Avatar member={member} large />
-      <div className="flex-1 min-w-0">
-        <p className="font-display text-xl font-extrabold text-[var(--ink)]">{member.name}</p>
-        {member.designation && (
-          <p className="mt-1 text-sm font-semibold text-coral-500">{member.designation}</p>
-        )}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {Object.entries(socials).map(([type, url]) =>
-            url ? <SocialIcon key={type} href={url} type={type} /> : null
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+  const hasSocials = Object.values(socials).some(Boolean);
 
-function MemberCard({ member, delay }: { member: TeamMember; delay: string }) {
-  const { ref, visible } = useReveal();
-  const socials = parseSocials(member.socialLinks);
-  return (
-    <div
-      ref={ref as React.RefObject<HTMLDivElement>}
-      className={`reveal ${delay} ${visible ? "visible" : ""} flex flex-col items-center text-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6`}
-    >
+  const face = (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[var(--surface)] p-5 text-center">
       <Avatar member={member} />
       <div>
         <p className="font-display text-sm font-bold text-[var(--ink)]">{member.name}</p>
         {member.designation && (
-          <p className="mt-0.5 text-xs font-medium text-coral-500">{member.designation}</p>
+          <p className="mt-0.5 text-xs font-medium text-[var(--muted)]">{member.designation}</p>
         )}
       </div>
-      {Object.values(socials).some(Boolean) && (
-        <div className="flex flex-wrap justify-center gap-1.5">
+    </div>
+  );
+
+  const hoverFace = (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 bg-gradient-to-br from-coral-500 to-[#5B7CF7] p-5 text-center text-white">
+      <p className="font-display text-sm font-bold">{member.name}</p>
+      {member.designation && (
+        <p className="text-[11px] font-semibold uppercase tracking-wide opacity-85">{member.designation}</p>
+      )}
+      {hasSocials ? (
+        <div className="flex flex-wrap justify-center gap-1.5 pt-1">
           {Object.entries(socials).map(([type, url]) =>
-            url ? <SocialIcon key={type} href={url} type={type} /> : null
+            url ? <SocialIcon key={type} href={url} type={type} light /> : null
           )}
         </div>
+      ) : (
+        <p className="text-[11px] opacity-70">Divyash Digital team</p>
       )}
+    </div>
+  );
+
+  return (
+    <div ref={ref as React.RefObject<HTMLDivElement>} className={`reveal ${delay ?? ""} ${visible ? "visible" : ""}`}>
+      <HoverTransition
+        effect="wipe"
+        direction="bottom"
+        duration={0.5}
+        label={`${member.name}${member.designation ? ` — ${member.designation}` : ""}`}
+        className="aspect-square w-full rounded-2xl border border-[var(--border)]"
+        defaultComponent={face}
+        hoverComponent={hoverFace}
+      />
     </div>
   );
 }
@@ -297,12 +322,14 @@ export default function TeamPage() {
           </div>
         ) : (
           <>
-            {/* Leadership */}
+            {/* Leadership — same smaller card tier as the rest of the team, one step down from Founders */}
             {leaders.length > 0 && (
               <div>
                 <p className="section-label mb-6">Leadership</p>
-                <div className="grid gap-5 md:grid-cols-2">
-                  {leaders.map((m) => <LeaderCard key={m.id} member={m} />)}
+                <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+                  {leaders.map((m, i) => (
+                    <TeamHoverCard key={m.id} member={m} delay={`reveal-delay-${(i % 6) + 1}`} />
+                  ))}
                 </div>
               </div>
             )}
@@ -313,7 +340,7 @@ export default function TeamPage() {
                 <p className="section-label text-lg mb-6">Our team</p>
                 <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                   {rest.map((m, i) => (
-                    <MemberCard key={m.id} member={m} delay={`reveal-delay-${(i % 6) + 1}`} />
+                    <TeamHoverCard key={m.id} member={m} delay={`reveal-delay-${(i % 6) + 1}`} />
                   ))}
                 </div>
               </div>

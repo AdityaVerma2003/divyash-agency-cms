@@ -24,34 +24,34 @@ interface PortfolioItem {
   category: string;
   color: string;
   accent: string;
-  /** File in public/clients/ — falls back to an initial avatar when absent */
+  /** Cloudinary public_id from lib/clients.ts — falls back to an initial avatar when absent */
   logo?: string;
 }
 
 const PORTFOLIO: PortfolioItem[] = [
-  { name: "Pet Paradise", logo: "18.webp", intro: "Pet care and adoption services for loving homes.", category: "Branding & SMM", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", accent: "#F59E0B" },
+  { name: "Pet Paradise", logo: "18", intro: "Pet care and adoption services for loving homes.", category: "Branding & SMM", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", accent: "#F59E0B" },
   { name: "Retail Store", intro: "A neighbourhood retail store serving everyday essentials.", category: "Web Design & SEO", color: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400", accent: "#0284C7" },
-  { name: "The Springdale School", logo: "36.webp", intro: "A Varanasi school built on the motto \"Love, Peace, Joy.\"", category: "GMB & SEO", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", accent: "#059669" },
+  { name: "The Springdale School", logo: "36", intro: "A Varanasi school built on the motto \"Love, Peace, Joy.\"", category: "GMB & SEO", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", accent: "#059669" },
   { name: "Grocery Store", intro: "A local grocery store stocking daily household needs.", category: "Social Media", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400", accent: "#DB2777" },
-  { name: "SD Dental Care", logo: "33.webp", intro: "Dental clinic offering general and cosmetic dentistry.", category: "App & Web Design", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400", accent: "#0891B2" },
-  { name: "Vedaanta Clinic", logo: "4.webp", intro: "Advanced dental & medical care under one roof.", category: "GMB & Meta Ads", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400", accent: "#7C3AED" },
-  { name: "F — Fashion World", logo: "55.webp", intro: "Fashion retail brand curating everyday and occasion wear.", category: "E-Commerce & Ads", color: "bg-coral-100 text-coral-700 dark:bg-coral-900/30 dark:text-coral-400", accent: "#6366F1" },
-  { name: "Precious Skincare", logo: "22.svg", intro: "Skincare brand built around the idea that skin tells your story.", category: "Meta Ads & SMM", color: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400", accent: "#F87DA3" },
-  { name: "MindSparkz", logo: "19.webp", intro: "Early-learning programs focused on nurturing young minds.", category: "Web Design & GMB", color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400", accent: "#4F46E5" },
-  { name: "Stone Gateway", logo: "46.webp", intro: "Building materials trading company sourcing stone at scale.", category: "Google Ads & SEO", color: "bg-stone-100 text-stone-700 dark:bg-stone-900/30 dark:text-stone-500", accent: "#78716C" },
-  { name: "Neetu Singh & Associates", logo: "1.webp", intro: "A legal practice offering counsel across civil and corporate law.", category: "Branding & Web", color: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400", accent: "#0D9488" },
-  { name: "Shyam Multi-Speciality Clinic", logo: "39.svg", intro: "Multi-speciality clinic offering a range of medical consultations.", category: "GMB & Meta Ads", color: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400", accent: "#A21CAF" },
-  { name: "The Adore Gem", logo: "35.svg", intro: "Handmade accessories and jewellery for everyday elegance.", category: "Social Media & Ads", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400", accent: "#EA580C" },
-  { name: "Ink Play Foundation", logo: "15.webp", intro: "A foundation using art and play to support children's growth.", category: "Web Design & SEO", color: "bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-600", accent: "#65A30D" },
+  { name: "SD Dental Care", logo: "33", intro: "Dental clinic offering general and cosmetic dentistry.", category: "App & Web Design", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400", accent: "#0891B2" },
+  { name: "Vedaanta Clinic", logo: "4", intro: "Advanced dental & medical care under one roof.", category: "GMB & Meta Ads", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400", accent: "#7C3AED" },
+  { name: "F — Fashion World", logo: "55", intro: "Fashion retail brand curating everyday and occasion wear.", category: "E-Commerce & Ads", color: "bg-coral-100 text-coral-700 dark:bg-coral-900/30 dark:text-coral-400", accent: "#6366F1" },
+  { name: "Precious Skincare", logo: "22", intro: "Skincare brand built around the idea that skin tells your story.", category: "Meta Ads & SMM", color: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400", accent: "#F87DA3" },
+  { name: "MindSparkz", logo: "19", intro: "Early-learning programs focused on nurturing young minds.", category: "Web Design & GMB", color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400", accent: "#4F46E5" },
+  { name: "Stone Gateway", logo: "46", intro: "Building materials trading company sourcing stone at scale.", category: "Google Ads & SEO", color: "bg-stone-100 text-stone-700 dark:bg-stone-900/30 dark:text-stone-500", accent: "#78716C" },
+  { name: "Neetu Singh & Associates", logo: "1", intro: "A legal practice offering counsel across civil and corporate law.", category: "Branding & Web", color: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400", accent: "#0D9488" },
+  { name: "Shyam Multi-Speciality Clinic", logo: "39", intro: "Multi-speciality clinic offering a range of medical consultations.", category: "GMB & Meta Ads", color: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400", accent: "#A21CAF" },
+  { name: "The Adore Gem", logo: "35", intro: "Handmade accessories and jewellery for everyday elegance.", category: "Social Media & Ads", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400", accent: "#EA580C" },
+  { name: "Ink Play Foundation", logo: "15", intro: "A foundation using art and play to support children's growth.", category: "Web Design & SEO", color: "bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-600", accent: "#65A30D" },
   { name: "Hyper Market", intro: "A hypermarket chain offering groceries and household goods.", category: "E-Commerce & GMB", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-500", accent: "#CA8A04" },
-  { name: "R&D Dental", logo: "26.webp", intro: "Family dental care with a focus on comfort and precision.", category: "Meta Ads & SMM", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400", accent: "#7C3AED" },
-  { name: "Startup Counter", logo: "14.svg", intro: "A consultancy helping startups and small businesses grow faster.", category: "Full Digital Stack", color: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400", accent: "#0284C7" },
-  { name: "Shri Ram Banarsee Saree", logo: "47.webp", intro: "Traditional Banarasi saree house rooted in Varanasi craftsmanship.", category: "Google Ads & SEO", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400", accent: "#DB2777" },
+  { name: "R&D Dental", logo: "26", intro: "Family dental care with a focus on comfort and precision.", category: "Meta Ads & SMM", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400", accent: "#7C3AED" },
+  { name: "Startup Counter", logo: "14", intro: "A consultancy helping startups and small businesses grow faster.", category: "Full Digital Stack", color: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400", accent: "#0284C7" },
+  { name: "Shri Ram Banarsee Saree", logo: "47", intro: "Traditional Banarasi saree house rooted in Varanasi craftsmanship.", category: "Google Ads & SEO", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400", accent: "#DB2777" },
   { name: "Logo Designs", intro: "Freelance identity design for brands starting out.", category: "Graphic Design", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", accent: "#059669" },
   { name: "GMB Listings", intro: "Multi-location business helping customers find them locally.", category: "Local SEO & GMB", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", accent: "#F59E0B" },
   { name: "E-Commerce Store", intro: "An online store scaling direct-to-consumer sales.", category: "Web & Performance", color: "bg-coral-100 text-coral-700 dark:bg-coral-900/30 dark:text-coral-400", accent: "#6366F1" },
-  { name: "Delhi Cantonment Board", logo: "11.webp", intro: "Civic body overseeing municipal services for the cantonment area.", category: "Branding & Web", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400", accent: "#7C3AED" },
-  { name: "Thinkers Log", logo: "2.webp", intro: "A journal of ideas and dissent from Bengal.", category: "Content & SEO", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400", accent: "#0891B2" },
+  { name: "Delhi Cantonment Board", logo: "11", intro: "Civic body overseeing municipal services for the cantonment area.", category: "Branding & Web", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400", accent: "#7C3AED" },
+  { name: "Thinkers Log", logo: "2", intro: "A journal of ideas and dissent from Bengal.", category: "Content & SEO", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400", accent: "#0891B2" },
 ];
 
 const STATS = [
@@ -82,7 +82,7 @@ function PortfolioCard({ item, delay, caseStudy }: {
       {/* Logo + name, side by side */}
       <div className="relative flex items-center gap-3">
         {item.logo ? (
-          <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-2.5 shadow-sm">
+          <div className="flex h-24 w-24 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-2.5 shadow-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={clientLogoSrc(item.logo)}
