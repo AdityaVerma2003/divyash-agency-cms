@@ -616,85 +616,50 @@ function ServicesSection() {
 /* ── Stats ──────────────────────────────────────────────────────────────────── */
 const STATS_BANNER_GRADIENT = "linear-gradient(120deg, #6366F1 0%, #5B7CF7 35%, #2DBFA0 70%, #F87DA3 100%)";
 
+const STATS_DATA = [
+  { target: 180, suffix: "+", icon: <DoodleBarChart size={30} />, bgColor: "#6366F1", description: "Projects delivered — across 6 service areas" },
+  { target: 50, suffix: "%", icon: <DoodleRocket size={30} />, bgColor: "#5B7CF7", description: "Average growth rate — across active clients" },
+  { target: 100, suffix: "+", icon: <DoodleTarget size={30} />, bgColor: "#2DBFA0", description: "Design projects — logos, creatives, UI/UX" },
+  { target: 6, suffix: "", icon: <DoodleMagnifier size={30} />, bgColor: "#F87DA3", description: "Core services — under one roof" },
+];
+
 function StatsSection() {
-  const { ref: r1, count: c1 } = useCountUp(180);
-  const { ref: r2, count: c2 } = useCountUp(50);
-  const { ref: r3, count: c3 } = useCountUp(100);
-  const { ref: r4, count: c4 } = useCountUp(6);
+  // The desktop split view and the mobile grid both render at the same time
+  // (one is just CSS-hidden), so each needs its own count-up instance —
+  // sharing one ref/IntersectionObserver between the two copies meant only
+  // whichever copy was actually visible could ever trigger it, and a
+  // visually-hidden (clip-rect) sentinel never intersects at all, which is
+  // why every card was stuck showing 0.
+  const desktop = STATS_DATA.map((s) => useCountUp(s.target));
+  const mobile = STATS_DATA.map((s) => useCountUp(s.target));
 
-  // count-up is triggered off these sentinels (kept in normal layout via
-  // sr-only, not display:none, so they still register with the
-  // IntersectionObserver) rather than the card markup itself, since the card
-  // content below renders twice — once for the desktop split effect, once
-  // for the plain mobile layout — and a ref can only ever attach to one of them.
-  const sentinels = (
-    <span className="sr-only" aria-hidden>
-      <span ref={r1}>{c1}</span>
-      <span ref={r2}>{c2}</span>
-      <span ref={r3}>{c3}</span>
-      <span ref={r4}>{c4}</span>
-    </span>
+  const buildCards = (counts: typeof desktop): ScrollSplitCardItem[] =>
+    STATS_DATA.map((s, i) => ({
+      icon: s.icon,
+      bgColor: s.bgColor,
+      textColor: "#FFFFFF",
+      title: (
+        <p className="font-display text-3xl font-extrabold sm:text-4xl md:text-5xl">
+          <span ref={counts[i].ref}>{counts[i].count}</span>{s.suffix}
+        </p>
+      ),
+      description: s.description,
+    }));
+
+  const endingText = (
+    <p className="font-display text-2xl font-bold text-white sm:text-3xl">
+      Every number, backed by real work.
+    </p>
   );
-
-  const stats: ScrollSplitCardItem[] = [
-    {
-      icon: <DoodleBarChart size={30} />,
-      bgColor: "#6366F1",
-      textColor: "#FFFFFF",
-      title: (
-        <p className="font-display text-3xl font-extrabold sm:text-4xl md:text-5xl">
-          {c1}+
-        </p>
-      ),
-      description: "Projects delivered — across 6 service areas",
-    },
-    {
-      icon: <DoodleRocket size={30} />,
-      bgColor: "#5B7CF7",
-      textColor: "#FFFFFF",
-      title: (
-        <p className="font-display text-3xl font-extrabold sm:text-4xl md:text-5xl">
-          {c2}%
-        </p>
-      ),
-      description: "Average growth rate — across active clients",
-    },
-    {
-      icon: <DoodleTarget size={30} />,
-      bgColor: "#2DBFA0",
-      textColor: "#FFFFFF",
-      title: (
-        <p className="font-display text-3xl font-extrabold sm:text-4xl md:text-5xl">
-          {c3}+
-        </p>
-      ),
-      description: "Design projects — logos, creatives, UI/UX",
-    },
-    {
-      icon: <DoodleMagnifier size={30} />,
-      bgColor: "#F87DA3",
-      textColor: "#FFFFFF",
-      title: (
-        <p className="font-display text-3xl font-extrabold sm:text-4xl md:text-5xl">
-          {c4}
-        </p>
-      ),
-      description: "Core services — under one roof",
-    },
-  ];
 
   return (
     <section className="relative bg-coral-500">
-      {sentinels}
       <ScrollSplitCard
         bannerBackground={STATS_BANNER_GRADIENT}
         hint="Scroll to see the numbers"
-        cards={stats}
-        endingText={
-          <p className="font-display text-2xl font-bold text-white sm:text-3xl">
-            Every number, backed by real work.
-          </p>
-        }
+        cards={buildCards(desktop)}
+        mobileCards={buildCards(mobile)}
+        endingText={endingText}
       />
     </section>
   );

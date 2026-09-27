@@ -19,6 +19,13 @@ export interface ScrollSplitCardProps {
   hint?: string;
   endingText?: ReactNode;
   cards: ScrollSplitCardItem[];
+  /** Separate card content for the mobile fallback layout (see below). Defaults
+   * to `cards` when omitted — but if any card's `title`/`description` carries
+   * a ref (e.g. for a count-up animation), pass genuinely separate elements
+   * here rather than reusing the same ones, since the desktop split view and
+   * the mobile grid both render at the same time (one just CSS-hidden) and a
+   * single ref can only ever attach to one of the two copies. */
+  mobileCards?: ScrollSplitCardItem[];
   containerRef?: React.RefObject<HTMLElement | null>;
 }
 
@@ -105,6 +112,7 @@ export function ScrollSplitCard({
   hint = "Scroll down",
   endingText,
   cards,
+  mobileCards = cards,
   containerRef: externalContainerRef,
 }: ScrollSplitCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -167,7 +175,7 @@ export function ScrollSplitCard({
       {/* Mobile — plain, always-readable cards; no split/flip animation */}
       <div className={cn("py-16 md:hidden", className)}>
         <div className="mx-auto grid max-w-md grid-cols-2 gap-4 px-5">
-          {cards.map((card, i) => (
+          {mobileCards.map((card, i) => (
             <div
               key={i}
               className="flex flex-col gap-3 rounded-2xl border border-white/10 p-5"
