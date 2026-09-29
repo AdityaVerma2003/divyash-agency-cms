@@ -118,11 +118,28 @@ model User {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
-  managedClients Client[]       @relation("AccountManager")
+  clientAssignments ClientAssignment[]
   auditLogs      AuditLog[]
   notifications  Notification[]
   blogPosts      BlogPost[]
   sessions       UserSession[]
+}
+
+// A team member assigned to work on a client's account. Many-to-many —
+// several team members can be assigned to the same client, and a team
+// member can be assigned to several clients, without any assignment
+// displacing another.
+model ClientAssignment {
+  id         String   @id @default(uuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([clientId, userId])
+  @@index([clientId])
+  @@index([userId])
 }
 
 // Tracks portal login/logout so a client can see how much time their
@@ -150,10 +167,10 @@ model Client {
   suspensionNotes   String?
   suspendedAt       DateTime?
   suspendedBy       String?
-  accountManagerId  String?
-  accountManager    User?        @relation("AccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
   onboardedAt       DateTime     @default(now())
   agreementDetails  String?
+  // Whether this client appears in the public "Our Work" portfolio section
+  showOnPublicSite  Boolean      @default(false)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
@@ -164,6 +181,7 @@ model Client {
   reports        Report[]
   clientReports  ClientReport[]
   caseStudies    CaseStudy[]
+  assignments    ClientAssignment[]
 }
 
 // ── Services & subscriptions ────────────────────────────────────────────

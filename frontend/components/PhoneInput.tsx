@@ -70,7 +70,7 @@ export default function PhoneInput({
   }
 
   const baseInput = [
-    "flex-1 rounded-r-xl border-y border-r border-[var(--border)] bg-[var(--surface)]",
+    "flex-1 min-w-0 rounded-r-xl border-y border-r border-[var(--border)] bg-[var(--surface)]",
     "px-3 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)]",
     "outline-none focus:border-coral-500 transition-colors",
     error ? "border-red-400 dark:border-red-500" : "",
@@ -78,14 +78,14 @@ export default function PhoneInput({
   ].join(" ");
 
   return (
-    <div className="flex">
+    <div className="flex min-w-0">
       {/* Country code selector */}
       <select
         value={dialCode}
         onChange={(e) => setDialCode(e.target.value)}
         className={[
-          "flex-shrink-0 rounded-l-xl border border-[var(--border)] bg-[var(--surface)]",
-          "pl-2.5 pr-7 py-2.5 text-sm text-[var(--ink)] outline-none",
+          "flex-shrink-0 min-w-0 rounded-l-xl border border-[var(--border)] bg-[var(--surface)]",
+          "pl-2.5 pr-6 py-2.5 text-sm text-[var(--ink)] outline-none",
           "focus:border-coral-500 transition-colors appearance-none",
           "border-r-0 cursor-pointer",
           error ? "border-red-400 dark:border-red-500" : "",

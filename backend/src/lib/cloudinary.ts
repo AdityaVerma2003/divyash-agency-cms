@@ -26,6 +26,8 @@ export async function uploadToCloudinary(
     throw new Error("Cloudinary not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET.");
   }
 
+  const isImage = (options.resource_type ?? "image") === "image";
+
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
@@ -33,8 +35,15 @@ export async function uploadToCloudinary(
         public_id:     options.public_id,
         resource_type: options.resource_type ?? "image",
         overwrite:     true,
-        format:         "webp",
-        transformation: [{ width: 1200, height: 630, crop: "limit", quality: "auto:good" }],
+        // The webp/crop transform only makes sense for real images (blog
+        // covers, team photos) — applying it to "raw" uploads (PDFs) mangles
+        // the file against a mismatched .webp extension, so it's skipped there.
+        ...(isImage
+          ? {
+              format: "webp",
+              transformation: [{ width: 1200, height: 630, crop: "limit", quality: "auto:good" }],
+            }
+          : {}),
       },
       (err, result) => {
         if (err || !result) return reject(err ?? new Error("Cloudinary upload returned no result"));

@@ -17,6 +17,12 @@ interface CaseStudy {
   pdfUrl: string;
 }
 
+interface PublicClient {
+  id: string;
+  companyName: string;
+  caseStudy: { id: string; title?: string | null; pdfUrl: string } | null;
+}
+
 interface PortfolioItem {
   name: string;
   /** 1–2 line description of the client's niche/business */
@@ -136,9 +142,65 @@ function PortfolioCard({ item, delay, caseStudy }: {
   );
 }
 
+const REAL_CLIENT_COLORS = ["#6366F1", "#2DBFA0", "#5B7CF7", "#F87DA3", "#D97706", "#7C3AED", "#0891B2", "#DB2777"];
+function realClientAccent(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return REAL_CLIENT_COLORS[Math.abs(hash) % REAL_CLIENT_COLORS.length];
+}
+
+/** Card for a real, DB-backed client (no curated intro/category/logo — just
+    company name, an initials avatar, and a real download/coming-soon state
+    tied directly to that client's own case study, no name-matching needed). */
+function RealClientCard({ client, delay }: { client: PublicClient; delay: string }) {
+  const { ref, visible } = useReveal();
+  const accent = realClientAccent(client.companyName);
+
+  return (
+    <div
+      ref={ref as React.RefObject<HTMLDivElement>}
+      className={`reveal ${delay} ${visible ? "visible" : ""} group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/30 motion-reduce:translate-y-0 flex flex-col gap-4`}
+    >
+      <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-[0.08] transition-opacity group-hover:opacity-[0.14]" style={{ backgroundColor: accent }} />
+
+      <div className="relative flex items-center gap-3">
+        <div
+          className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl text-2xl font-bold text-white"
+          style={{ backgroundColor: accent }}
+        >
+          {client.companyName.charAt(0)}
+        </div>
+        <p className="font-display text-base font-semibold leading-snug text-[var(--ink)]">{client.companyName}</p>
+      </div>
+
+      {client.caseStudy ? (
+        <a
+          href={client.caseStudy.pdfUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="relative mt-auto inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--ink)] hover:border-coral-500 hover:text-coral-500 transition-colors"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download Case Study
+        </a>
+      ) : (
+        <span className="relative mt-auto inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] opacity-50 cursor-default select-none">
+          Case study coming soon
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function WorkPage() {
   const [heroVisible, setHeroVisible] = useState(false);
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
+  const [realClients, setRealClients] = useState<PublicClient[]>([]);
 
   useEffect(() => {
     setHeroVisible(true);
@@ -146,6 +208,10 @@ export default function WorkPage() {
       .then((r) => r.json())
       .then((data: CaseStudy[]) => setCaseStudies(data))
       .catch(() => setCaseStudies([]));
+    fetch(`${API}/public/clients`)
+      .then((r) => r.json())
+      .then((data: PublicClient[]) => setRealClients(data))
+      .catch(() => setRealClients([]));
   }, []);
 
   function findCaseStudy(name: string): CaseStudy | undefined {
@@ -211,6 +277,23 @@ export default function WorkPage() {
           ))}
         </div>
       </section>
+
+      {/* Real, portal-onboarded clients opted into public visibility */}
+      {realClients.length > 0 && (
+        <section className="mx-auto max-w-6xl px-5 pb-16 md:pb-24">
+          <div className="mb-10">
+            <p className="section-label mb-3">Also growing with us</p>
+            <h2 className="font-display text-2xl font-bold text-[var(--ink)] md:text-3xl">
+              More clients on the journey
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {realClients.map((client, i) => (
+              <RealClientCard key={client.id} client={client} delay={`reveal-delay-${(i % 6) + 1}`} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* CTA */}
       <section className="py-16 md:py-20 bg-[var(--surface-2)]">

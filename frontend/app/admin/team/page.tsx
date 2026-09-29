@@ -107,17 +107,59 @@ export default function AdminTeamPage() {
       warning("Required fields missing", "Name, email and designation are required.");
       return;
     }
+    if (form.clientIds.length === 0) {
+      warning("Assign at least one client", "Every teammate must be assigned to at least one client.");
+      return;
+    }
     setSubmitting(true);
     try {
       await api.post<TeamMember>("/users", form, getAccessToken());
-      const clientNote = form.clientIds.length > 0 ? ` Assigned to ${form.clientIds.length} client${form.clientIds.length !== 1 ? "s" : ""}.` : "";
-      success("Member added", `${form.name} has been added. A setup email is being sent to ${form.email}.${clientNote}`);
+      success(
+        "Member added",
+        `${form.name} has been added. A setup email is being sent to ${form.email}. Assigned to ${form.clientIds.length} client${form.clientIds.length !== 1 ? "s" : ""}.`
+      );
       setShowModal(false);
       loadMembers();
     } catch (err) {
       toastError("Could not invite member", err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  const [editMember, setEditMember] = useState<TeamMember | null>(null);
+  const [editClientIds, setEditClientIds] = useState<string[]>([]);
+  const [savingAssignments, setSavingAssignments] = useState(false);
+
+  function openEditAssignments(m: TeamMember) {
+    setEditMember(m);
+    setEditClientIds(m.managedClients?.map((c) => c.id) ?? []);
+  }
+
+  function toggleEditClient(clientId: string) {
+    setEditClientIds((p) => (p.includes(clientId) ? p.filter((id) => id !== clientId) : [...p, clientId]));
+  }
+
+  async function saveAssignments() {
+    if (!editMember) return;
+    if (editClientIds.length === 0) {
+      warning("Assign at least one client", "A teammate must always be working on at least one client.");
+      return;
+    }
+    setSavingAssignments(true);
+    try {
+      const { managedClients } = await api.patch<{ managedClients: { id: string; companyName: string }[] }>(
+        `/users/${editMember.id}/clients`,
+        { clientIds: editClientIds },
+        getAccessToken()
+      );
+      setMembers((prev) => prev?.map((m) => (m.id === editMember.id ? { ...m, managedClients } : m)) ?? null);
+      success("Assignments updated", `${editMember.name} is now working on ${managedClients.length} client${managedClients.length !== 1 ? "s" : ""}.`);
+      setEditMember(null);
+    } catch (err) {
+      toastError("Could not update assignments", err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSavingAssignments(false);
     }
   }
 
@@ -234,13 +276,21 @@ export default function AdminTeamPage() {
                     {roleCfg.label}
                   </span>
                   {currentUserRole === "SUPER_ADMIN" && (
-                    <button
-                      onClick={() => setConfirmMember(m)}
-                      disabled={deletingId === m.id}
-                      className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)] hover:border-red-400 hover:text-red-500 transition-all disabled:opacity-40"
-                    >
-                      {deletingId === m.id ? "…" : "Remove"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditAssignments(m)}
+                        className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)] hover:border-coral-500 hover:text-coral-500 transition-all"
+                      >
+                        Edit clients
+                      </button>
+                      <button
+                        onClick={() => setConfirmMember(m)}
+                        disabled={deletingId === m.id}
+                        className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)] hover:border-red-400 hover:text-red-500 transition-all disabled:opacity-40"
+                      >
+                        {deletingId === m.id ? "…" : "Remove"}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -263,6 +313,49 @@ export default function AdminTeamPage() {
               className="btn rounded-lg border border-transparent bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 transition-colors"
             >
               Remove member
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit assignments modal */}
+      {editMember && (
+        <Modal title={`Edit clients — ${editMember.name}`} onClose={() => setEditMember(null)}>
+          <div className="block text-sm">
+            <span className="mb-1 block text-[var(--muted)]">Assigned to client(s) <span className="text-danger">*</span></span>
+            {clientOptions.length === 0 ? (
+              <p className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 text-xs text-[var(--muted)]">
+                No clients exist yet.
+              </p>
+            ) : (
+              <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+                {clientOptions.map((c) => (
+                  <label key={c.id} className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-[var(--ink)] hover:bg-[var(--surface-2)]">
+                    <input
+                      type="checkbox"
+                      checked={editClientIds.includes(c.id)}
+                      onChange={() => toggleEditClient(c.id)}
+                      className="h-4 w-4 rounded border-[var(--border)] text-coral-500 focus:ring-coral-500"
+                    />
+                    {c.companyName}
+                  </label>
+                ))}
+              </div>
+            )}
+            <span className="mt-1 block text-xs text-[var(--muted)]">
+              Other team members already assigned to these clients are unaffected — this only changes {editMember.name}&apos;s own assignments.
+            </span>
+          </div>
+
+          <div className="mt-5 flex justify-end gap-3">
+            <button type="button" onClick={() => setEditMember(null)} className="btn btn-ghost">Cancel</button>
+            <button
+              type="button"
+              onClick={saveAssignments}
+              disabled={savingAssignments}
+              className="btn btn-primary disabled:opacity-60"
+            >
+              {savingAssignments ? "Saving…" : "Save changes"}
             </button>
           </div>
         </Modal>
@@ -331,10 +424,10 @@ export default function AdminTeamPage() {
               </label>
 
               <div className="block text-sm">
-                <span className="mb-1 block text-[var(--muted)]">Assign to client(s) <span className="font-normal">(optional)</span></span>
+                <span className="mb-1 block text-[var(--muted)]">Assign to client(s) <span className="text-danger">*</span></span>
                 {clientOptions.length === 0 ? (
                   <p className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 text-xs text-[var(--muted)]">
-                    No clients yet — you can assign this teammate to a client later from the client's page.
+                    No clients exist yet — add a client first, then invite this teammate.
                   </p>
                 ) : (
                   <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
@@ -352,7 +445,7 @@ export default function AdminTeamPage() {
                   </div>
                 )}
                 <span className="mt-1 block text-xs text-[var(--muted)]">
-                  They&apos;ll be set as the assigned team member for each client selected — this replaces any teammate currently assigned to that client.
+                  Multiple team members can work on the same client — this adds them alongside anyone already assigned.
                 </span>
               </div>
 

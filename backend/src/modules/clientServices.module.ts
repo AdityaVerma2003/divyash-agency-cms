@@ -91,7 +91,7 @@ router.patch(
 
     const existing = await prisma.clientService.findUnique({
       where: { id: req.params.id },
-      include: { service: true, client: true },
+      include: { service: true, client: { include: { assignments: { select: { userId: true } } } } },
     });
     if (!existing) throw ApiError.notFound("Subscription not found");
 
@@ -122,16 +122,18 @@ router.patch(
       meta: { service: updated.service.name, client: existing.client.companyName, reason, notes },
     }).catch(() => undefined);
 
-    // Notify the account manager if one is assigned
-    if (existing.client.accountManagerId) {
-      notify(
-        existing.client.accountManagerId,
-        "SERVICE_STATUS_CHANGED",
-        `${existing.client.companyName}: ${existing.service.name} has been ${actionLabel} (${reason}).`,
-        `/admin/clients/${existing.clientId}`
-      ).catch(() => undefined);
+    // Notify every assigned team member
+    if (existing.client.assignments.length > 0) {
+      for (const a of existing.client.assignments) {
+        notify(
+          a.userId,
+          "SERVICE_STATUS_CHANGED",
+          `${existing.client.companyName}: ${existing.service.name} has been ${actionLabel} (${reason}).`,
+          `/admin/clients/${existing.clientId}`
+        ).catch(() => undefined);
+      }
     } else {
-      // No account manager — notify all admins
+      // No team member assigned — notify all admins
       notifyAdmins(
         "SERVICE_STATUS_CHANGED",
         `${existing.client.companyName}: ${existing.service.name} has been ${actionLabel} (${reason}).`,

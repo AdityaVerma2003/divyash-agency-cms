@@ -40,6 +40,12 @@ export default function AdminCaseStudiesPage() {
       toastError("Select client", "Please select a client before uploading.");
       return;
     }
+    const isPdf = file.type === "application/pdf" && file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      toastError("Only PDF files are allowed", "Please choose a .pdf file.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setUploading(true);
     try {
       const token = getAccessToken();
@@ -53,7 +59,10 @@ export default function AdminCaseStudiesPage() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
       });
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message ?? `Upload failed: ${res.status}`);
+      }
       success("Case study uploaded", "");
       setClientId("");
       setTitle("");

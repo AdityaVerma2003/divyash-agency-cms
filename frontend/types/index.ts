@@ -31,8 +31,9 @@ export interface Client {
   suspensionNotes?: string | null;
   suspendedAt?: string | null;
   onboardedAt: string;
-  accountManagerId?: string | null;
-  accountManager?: { id: string; name: string } | null;
+  showOnPublicSite: boolean;
+  /** Team members assigned to this client — many-to-many, no single "owner" */
+  assignments?: { id: string; user: { id: string; name: string; designation?: string | null } }[];
   _count?: { clientServices: number };
   clientServices?: (ClientService & { service: Service })[];
 }
@@ -44,10 +45,14 @@ export interface UserSession {
   durationMinutes: number | null;
 }
 
-export interface TeamActivity {
-  member: { id: string; name: string; designation: string | null; photoUrl: string | null } | null;
+export interface TeamMemberActivity {
+  member: { id: string; name: string; designation: string | null; photoUrl: string | null };
   sessions: UserSession[];
   totalActiveMinutes: number;
+}
+
+export interface TeamActivity {
+  members: TeamMemberActivity[];
 }
 
 export interface Service {

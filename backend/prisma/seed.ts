@@ -45,8 +45,13 @@ async function main() {
       phone: "+91 90000 00000",
       gstin: "07ABCDE1234F1Z5",
       address: "Connaught Place, New Delhi",
-      accountManagerId: admin.id,
     },
+  });
+
+  await prisma.clientAssignment.upsert({
+    where: { clientId_userId: { clientId: client.id, userId: admin.id } },
+    update: {},
+    create: { clientId: client.id, userId: admin.id },
   });
 
   const clientPasswordHash = await bcrypt.hash("Client@123", 10);

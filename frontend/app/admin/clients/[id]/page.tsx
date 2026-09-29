@@ -110,7 +110,8 @@ interface EditForm {
   phone: string;
   gstin: string;
   address: string;
-  accountManagerId: string;
+  assignedUserIds: string[];
+  showOnPublicSite: boolean;
 }
 
 function toEditForm(client: Client): EditForm {
@@ -121,7 +122,8 @@ function toEditForm(client: Client): EditForm {
     phone: client.phone ?? "",
     gstin: client.gstin ?? "",
     address: client.address ?? "",
-    accountManagerId: client.accountManagerId ?? "",
+    assignedUserIds: client.assignments?.map((a) => a.user.id) ?? [],
+    showOnPublicSite: client.showOnPublicSite,
   };
 }
 
@@ -157,6 +159,7 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
     if (phoneErr) e.phone = phoneErr;
     if (form.gstin.trim() && !GSTIN_REGEX.test(form.gstin.trim().toUpperCase()))
       e.gstin = "Invalid GSTIN (e.g. 22AAAAA0000A1Z5)";
+    if (form.assignedUserIds.length === 0) e.assignedUserIds = "Assign at least one team member";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -174,11 +177,15 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
         ...(form.phone.trim() && { phone: form.phone.trim() }),
         ...(form.gstin.trim() && { gstin: form.gstin.trim() }),
         ...(form.address.trim() && { address: form.address.trim() }),
-        // "" means the admin picked "Unassigned" — send null to explicitly clear it
-        accountManagerId: form.accountManagerId || null,
+        showOnPublicSite: form.showOnPublicSite,
       };
       const updated = await api.patch<Client>(`/clients/${client.id}`, payload, getAccessToken());
-      onSaved(updated);
+      const withTeam = await api.patch<Client>(
+        `/clients/${client.id}/team`,
+        { userIds: form.assignedUserIds },
+        getAccessToken()
+      );
+      onSaved({ ...updated, ...withTeam });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -186,7 +193,7 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
     }
   }
 
-  function field(key: keyof EditForm) {
+  function field(key: Exclude<keyof EditForm, "showOnPublicSite" | "assignedUserIds">) {
     return {
       value: form[key],
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -231,7 +238,7 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
             {errors.email && <p className="mt-1 text-xs text-danger">{errors.email}</p>}
           </label>
 
-          <div className="block text-sm">
+          <div className="min-w-0 block text-sm sm:col-span-2">
             <span className="mb-1 block text-[var(--muted)]">Phone</span>
             <PhoneInput
               value={form.phone}
@@ -241,11 +248,12 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
               }}
               onInvalidPaste={() => {}}
               error={!!errors.phone}
+              className="max-w-[220px]"
             />
             {errors.phone && <p className="mt-1 text-xs text-danger">{errors.phone}</p>}
           </div>
 
-          <label className="block text-sm">
+          <label className="block text-sm sm:col-span-2">
             <span className="mb-1 block text-[var(--muted)]">GSTIN</span>
             <input
               type="text"
@@ -265,18 +273,52 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
             <textarea rows={2} className={`${inp("address")} resize-none`} {...field("address")} />
           </label>
 
-          <label className="block text-sm sm:col-span-2">
-            <span className="mb-1 block text-[var(--muted)]">Assigned team member</span>
-            <select
-              value={form.accountManagerId}
-              onChange={(e) => setForm((p) => ({ ...p, accountManagerId: e.target.value }))}
-              className={inp("accountManagerId")}
-            >
-              <option value="">Unassigned</option>
-              {teamOptions.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}{t.designation ? ` — ${t.designation}` : ""}</option>
-              ))}
-            </select>
+          <div className="block text-sm sm:col-span-2">
+            <span className="mb-1 block text-[var(--muted)]">Assigned team member(s) <span className="text-danger">*</span></span>
+            <div className={`max-h-40 space-y-0.5 overflow-y-auto rounded-lg border p-2 ${errors.assignedUserIds ? "border-danger" : "border-[var(--border)]"}`}>
+              {teamOptions.length === 0 ? (
+                <p className="px-2 py-1 text-xs text-[var(--muted)]">No team members yet</p>
+              ) : (
+                teamOptions.map((t) => (
+                  <label key={t.id} className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-[var(--ink)] hover:bg-[var(--surface-2)]">
+                    <input
+                      type="checkbox"
+                      checked={form.assignedUserIds.includes(t.id)}
+                      onChange={() => {
+                        setForm((p) => ({
+                          ...p,
+                          assignedUserIds: p.assignedUserIds.includes(t.id)
+                            ? p.assignedUserIds.filter((id) => id !== t.id)
+                            : [...p.assignedUserIds, t.id],
+                        }));
+                        if (errors.assignedUserIds) setErrors((prev) => ({ ...prev, assignedUserIds: undefined }));
+                      }}
+                      className="h-4 w-4 rounded border-[var(--border)] text-coral-500 focus:ring-coral-500"
+                    />
+                    {t.name}{t.designation ? ` — ${t.designation}` : ""}
+                  </label>
+                ))
+              )}
+            </div>
+            {errors.assignedUserIds && <p className="mt-1 text-xs text-danger">{errors.assignedUserIds}</p>}
+            <span className="mt-1 block text-xs text-[var(--muted)]">
+              Multiple team members can work on the same client.
+            </span>
+          </div>
+
+          <label className="flex items-start gap-2.5 text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.showOnPublicSite}
+              onChange={(e) => setForm((p) => ({ ...p, showOnPublicSite: e.target.checked }))}
+              className="mt-0.5 h-4 w-4 flex-shrink-0 accent-coral-500"
+            />
+            <span>
+              <span className="block text-[var(--ink)]">Show on public website</span>
+              <span className="block text-xs text-[var(--muted)]">
+                Lists this client on the public &quot;Our Work&quot; page.
+              </span>
+            </span>
           </label>
         </div>
 
@@ -1564,7 +1606,12 @@ export default function ClientDetailPage() {
           <InfoRow label="Phone" value={client.phone ?? "—"} />
           <InfoRow label="GSTIN" value={client.gstin ?? "—"} />
           <InfoRow label="Address" value={client.address ?? "—"} />
-          <InfoRow label="Account manager" value={client.accountManager?.name ?? "—"} />
+          <InfoRow
+            label="Team members"
+            value={client.assignments && client.assignments.length > 0
+              ? client.assignments.map((a) => a.user.name).join(", ")
+              : "—"}
+          />
           <InfoRow label="Onboarded" value={formatDate(client.onboardedAt)} />
         </dl>
       </div>

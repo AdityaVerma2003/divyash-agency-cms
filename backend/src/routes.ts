@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authRoutes from "./modules/auth.module";
-import clientsRoutes, { portalTeamActivityRouter } from "./modules/clients.module";
+import clientsRoutes, { portalTeamActivityRouter, publicClientsRouter } from "./modules/clients.module";
 import servicesRoutes from "./modules/services.module";
 import clientServicesRoutes from "./modules/clientServices.module";
 import invoicesRoutes from "./modules/invoices.module";
@@ -47,6 +47,7 @@ router.use("/blog-posts", publicBlogRouter);
 router.use("/admin/blog-posts", adminBlogRouter);
 router.use("/admin/case-studies", adminCaseStudiesRouter);
 router.use("/public/case-studies", publicCaseStudiesRouter);
+router.use("/public/clients", publicClientsRouter);
 router.use("/portal/reports", portalReportsRouter);
 router.use("/portal/team-activity", portalTeamActivityRouter);
 

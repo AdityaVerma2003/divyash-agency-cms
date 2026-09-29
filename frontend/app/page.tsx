@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { useReveal } from "@/hooks/useReveal";
@@ -19,10 +18,6 @@ import {
   wrap,
 } from "framer-motion";
 import { LayeredStack } from "@/components/LayeredStack";
-const HeroShaderCanvas = dynamic(
-  () => import("@/components/HeroShaderCanvas").then((m) => m.HeroShaderCanvas),
-  { ssr: false },
-);
 import { ScrollSplitCard, type ScrollSplitCardItem } from "@/components/ScrollSplitCard";
 import {
   CLIENT_LOGOS_ROW_1,
@@ -322,21 +317,6 @@ function HeroDashboardMockup() {
 function Hero() {
   return (
     <section className="relative overflow-hidden pt-28 pb-16 md:pt-36 md:pb-24">
-      {/* Animated shader-gradient backdrop */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.55] dark:opacity-[0.35]" aria-hidden>
-        <HeroShaderCanvas color1="#6366F1" color2="#2DBFA0" speed={0.5} className="h-full w-full" />
-      </div>
-      {/* Fade the shader out toward the edges so it reads as a soft glow behind the
-          content instead of a hard-edged rectangle */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-[var(--page-bg)]"
-        style={{
-          maskImage: "radial-gradient(ellipse 80% 70% at 50% 45%, black 0%, black 55%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(ellipse 80% 70% at 50% 45%, black 0%, black 55%, transparent 100%)",
-        }}
-        aria-hidden
-      />
-
       {/* Background blobs */}
       <div className="blob pointer-events-none absolute -top-32 -right-32 h-[480px] w-[480px] bg-coral-500 opacity-[0.08] dark:opacity-[0.06]" aria-hidden />
       <div className="blob pointer-events-none absolute -bottom-16 -left-24 h-[320px] w-[320px] bg-[#2DBFA0] opacity-[0.08] dark:opacity-[0.05]" aria-hidden style={{ animationDelay: "-4s" }} />
@@ -1017,9 +997,8 @@ function ClientLogoItem({ logo }: { logo: ClientLogo }) {
    reverses direction with page scroll velocity (same physics as the pasted
    ScrollBasedVelocity component, adapted to loop a set of logo chips instead
    of repeating a text string). */
-function LogoMarquee({ logos, baseVelocity = 18, reverse = false }: { logos: ClientLogo[]; baseVelocity?: number; reverse?: boolean }) {
+function LogoMarquee({ logos, baseVelocity = 10, reverse = false }: { logos: ClientLogo[]; baseVelocity?: number; reverse?: boolean }) {
   const SETS = 4;
-  const [hovered, setHovered] = useState(false);
   const [inView, setInView] = useState(false);
   const reduceMotionRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -1046,7 +1025,7 @@ function LogoMarquee({ logos, baseVelocity = 18, reverse = false }: { logos: Cli
 
   const direction = useRef(reverse ? -1 : 1);
   useAnimationFrame((_t, delta) => {
-    if (hovered || !inView || reduceMotionRef.current) return;
+    if (!inView || reduceMotionRef.current) return;
     let moveBy = direction.current * baseVelocity * (delta / 1000);
 
     if (velocityFactor.get() < 0) direction.current = reverse ? 1 : -1;
@@ -1057,12 +1036,7 @@ function LogoMarquee({ logos, baseVelocity = 18, reverse = false }: { logos: Cli
   });
 
   return (
-    <div
-      ref={wrapperRef}
-      className="relative flex w-full overflow-hidden"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div ref={wrapperRef} className="relative flex w-full overflow-hidden">
       <motion.div className="flex w-max" style={{ x }}>
         {Array.from({ length: SETS }).map((_, s) =>
           logos.map((logo, i) => <ClientLogoItem key={`${s}-${logo.name}-${i}`} logo={logo} />),
@@ -1096,8 +1070,8 @@ function TrustedBySection() {
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[var(--page-bg)] to-transparent md:w-32" />
 
         <div className="space-y-6 md:space-y-8">
-          <LogoMarquee logos={CLIENT_LOGOS_ROW_1} baseVelocity={20} />
-          <LogoMarquee logos={CLIENT_LOGOS_ROW_2} baseVelocity={14} reverse />
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_1} baseVelocity={11} />
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_2} baseVelocity={8} reverse />
         </div>
       </div>
     </section>

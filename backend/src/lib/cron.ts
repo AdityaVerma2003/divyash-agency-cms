@@ -15,7 +15,7 @@ async function checkContractsEndingSoon() {
     },
     include: {
       service: true,
-      client: { include: { accountManager: { select: { id: true } } } },
+      client: { include: { assignments: { select: { userId: true } } } },
     },
   });
 
@@ -24,8 +24,10 @@ async function checkContractsEndingSoon() {
     const msg = `${cs.client.companyName}'s ${cs.service.name} contract ends on ${endStr}.`;
     const link = `/admin/clients/${cs.clientId}`;
 
-    if (cs.client.accountManagerId) {
-      await notify(cs.client.accountManagerId, "CONTRACT_EXPIRING", msg, link).catch(() => undefined);
+    if (cs.client.assignments.length > 0) {
+      for (const a of cs.client.assignments) {
+        await notify(a.userId, "CONTRACT_EXPIRING", msg, link).catch(() => undefined);
+      }
     } else {
       await notifyAdmins("CONTRACT_EXPIRING", msg, link).catch(() => undefined);
     }

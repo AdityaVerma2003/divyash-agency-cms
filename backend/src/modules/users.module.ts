@@ -70,11 +70,16 @@ router.get(
         mobile: true,
         designation: true,
         createdAt: true,
-        managedClients: { select: { id: true, companyName: true } },
+        clientAssignments: { select: { client: { select: { id: true, companyName: true } } } },
       },
       orderBy: { createdAt: "asc" },
     });
-    res.json(users);
+    res.json(
+      users.map(({ clientAssignments, ...u }) => ({
+        ...u,
+        managedClients: clientAssignments.map((a) => a.client),
+      }))
+    );
   })
 );
 
@@ -89,18 +94,16 @@ router.post(
         email: z.string().email(),
         role: z.enum([Role.ACCOUNT_MANAGER, Role.SUPER_ADMIN]),
         designation: z.string().min(1).max(60).optional(),
-        // Clients this teammate will be assigned to work on (optional, set at invite time)
-        clientIds: z.array(z.string().uuid()).optional(),
+        // Clients this teammate will work on — mandatory, at least one
+        clientIds: z.array(z.string().uuid()).min(1, "Assign at least one client"),
       })
       .parse(req.body);
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw ApiError.conflict("A user with this email already exists");
 
-    if (clientIds && clientIds.length > 0) {
-      const foundCount = await prisma.client.count({ where: { id: { in: clientIds } } });
-      if (foundCount !== clientIds.length) throw ApiError.badRequest("One or more selected clients were not found");
-    }
+    const foundCount = await prisma.client.count({ where: { id: { in: clientIds } } });
+    if (foundCount !== clientIds.length) throw ApiError.badRequest("One or more selected clients were not found");
 
     const randomPasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 12);
 
@@ -124,12 +127,12 @@ router.post(
         where: { id: created.id },
         data: { resetToken: tokenHash, resetTokenExpiresAt: expiresAt },
       });
-      if (clientIds && clientIds.length > 0) {
-        await tx.client.updateMany({
-          where: { id: { in: clientIds } },
-          data: { accountManagerId: created.id },
-        });
-      }
+      // Additive — creates a join row per selected client without touching
+      // any existing assignments those clients already have to other teammates.
+      await tx.clientAssignment.createMany({
+        data: clientIds.map((clientId) => ({ clientId, userId: created.id })),
+        skipDuplicates: true,
+      });
       return created;
     });
 
@@ -232,6 +235,51 @@ router.patch(
   })
 );
 
+// PATCH /api/users/:id/clients — SUPER_ADMIN only. Replaces the full list of
+// clients THIS teammate is assigned to. Scoped strictly by userId, so it can
+// never remove a different teammate's assignment to the same client.
+router.patch(
+  "/:id/clients",
+  authorize(Role.SUPER_ADMIN),
+  asyncHandler(async (req, res) => {
+    const { clientIds } = z
+      .object({ clientIds: z.array(z.string().uuid()).min(1, "Assign at least one client") })
+      .parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user || user.role === Role.CLIENT) throw ApiError.notFound("Team member not found");
+
+    const foundCount = await prisma.client.count({ where: { id: { in: clientIds } } });
+    if (foundCount !== clientIds.length) throw ApiError.badRequest("One or more selected clients were not found");
+
+    const userId = req.params.id;
+    await prisma.$transaction([
+      prisma.clientAssignment.deleteMany({ where: { userId, clientId: { notIn: clientIds } } }),
+      ...clientIds.map((clientId) =>
+        prisma.clientAssignment.upsert({
+          where: { clientId_userId: { clientId, userId } },
+          update: {},
+          create: { clientId, userId },
+        })
+      ),
+    ]);
+
+    logAudit({
+      userId: req.user!.userId,
+      action: "UPDATE",
+      entity: "User",
+      entityId: userId,
+      meta: { clientIds },
+    }).catch(() => undefined);
+
+    const assignments = await prisma.clientAssignment.findMany({
+      where: { userId },
+      select: { client: { select: { id: true, companyName: true } } },
+    });
+    res.json({ managedClients: assignments.map((a) => a.client) });
+  })
+);
+
 // POST /api/users/:id/photo — upload employee photo to Cloudinary
 router.post(
   "/:id/photo",
@@ -274,9 +322,9 @@ router.delete(
       prisma.notification.deleteMany({ where: { userId: req.params.id } }),
       prisma.auditLog.updateMany({ where: { userId: req.params.id }, data: { userId: null } }),
       prisma.blogPost.updateMany({ where: { authorId: req.params.id }, data: { authorId: req.user!.userId } }),
-      // Unassign any clients this teammate was managing — they're left unassigned
-      // rather than silently reassigned, so an admin has to consciously re-pick.
-      prisma.client.updateMany({ where: { accountManagerId: req.params.id }, data: { accountManagerId: null } }),
+      // Drop this teammate's own assignments — any OTHER teammate assigned to
+      // the same clients is untouched.
+      prisma.clientAssignment.deleteMany({ where: { userId: req.params.id } }),
       prisma.user.delete({ where: { id: req.params.id } }),
     ]);
 

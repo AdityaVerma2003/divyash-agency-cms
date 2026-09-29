@@ -119,8 +119,20 @@ interface Founder {
 }
 
 const FOUNDERS: Founder[] = [
-  { name: "Divya Singh", title: "Founder, CEO", tags: ["Business Development", "Strategy", "Vision", "Growth"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790432848/divya.webp', linkedin: "https://www.linkedin.com" },
+  { name: "Divya Singh", title: "Founder, CEO", tags: ["Business Development", "Strategy", "Vision", "Growth"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790681352/divya.png', linkedin: "https://www.linkedin.com" },
   { name: "Yash Verma", title: "Co-Founder, COO", tags: ["Operations", "People", "Execution", "Culture"], photoUrl: 'https://res.cloudinary.com/kerxqrrt/image/upload/v1790529392/yash-phgoto.png', linkedin: "https://www.linkedin.com" },
+];
+
+/* ── Static team members ──────────────────────────────────────────────────────
+   Fixed roster (not admin-managed) shown alongside the dynamic, admin-managed
+   team grid below. Diksha has no photo yet — photoUrl: null falls back to the
+   same default avatar icon used for any admin-managed member without one. */
+const STATIC_TEAM: TeamMember[] = [
+  { id: "static-nishi", name: "Nishi", designation: "Legal Consultant & Content Creator", photoUrl: "https://res.cloudinary.com/kerxqrrt/image/upload/v1790687444/Nishi.webp", socialLinks: null, role: "ACCOUNT_MANAGER" },
+  { id: "static-abhinandan", name: "Abhinandan", designation: "App Developer & Coder", photoUrl: "https://res.cloudinary.com/kerxqrrt/image/upload/v1790687443/Abhinandan.webp", socialLinks: null, role: "ACCOUNT_MANAGER" },
+  { id: "static-sathya", name: "Sathya", designation: "Script Writer & Analyst", photoUrl: "https://res.cloudinary.com/kerxqrrt/image/upload/v1790687443/Sathya.webp", socialLinks: null, role: "ACCOUNT_MANAGER" },
+  { id: "static-kiran", name: "Kiran", designation: "SEO Expert & Copywriting", photoUrl: "https://res.cloudinary.com/kerxqrrt/image/upload/v1790687443/Kiran.webp", socialLinks: null, role: "ACCOUNT_MANAGER" },
+  { id: "static-diksha", name: "Diksha", designation: "3D Animator & Video Editor", photoUrl: null, socialLinks: null, role: "ACCOUNT_MANAGER" },
 ];
 
 function DefaultAvatar() {
@@ -280,7 +292,7 @@ export default function TeamPage() {
   }, []);
 
   const leaders = members.filter((m) => m.role === "SUPER_ADMIN");
-  const rest = members.filter((m) => m.role !== "SUPER_ADMIN");
+  const rest = [...STATIC_TEAM, ...members.filter((m) => m.role !== "SUPER_ADMIN")];
 
   return (
     <div className="min-h-screen bg-[var(--page-bg)] text-[var(--ink)]">
@@ -316,7 +328,7 @@ export default function TeamPage() {
               </div>
             ))}
           </div>
-        ) : members.length === 0 ? (
+        ) : leaders.length === 0 && rest.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-[var(--muted)] text-sm">Team profiles coming soon.</p>
           </div>

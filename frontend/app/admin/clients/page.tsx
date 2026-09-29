@@ -19,7 +19,8 @@ interface NewClientForm {
   gstin: string;
   address: string;
   portalPassword: string;
-  accountManagerId: string;
+  assignedUserIds: string[];
+  showOnPublicSite: boolean;
 }
 
 const EMPTY_FORM: NewClientForm = {
@@ -30,7 +31,8 @@ const EMPTY_FORM: NewClientForm = {
   gstin: "",
   address: "",
   portalPassword: "",
-  accountManagerId: "",
+  assignedUserIds: [],
+  showOnPublicSite: false,
 };
 
 interface TeamOption {
@@ -52,6 +54,7 @@ function validate(form: NewClientForm): Partial<Record<keyof NewClientForm, stri
   if (phoneErr) errors.phone = phoneErr;
   if (form.portalPassword && form.portalPassword.length < 8)
     errors.portalPassword = "Password must be at least 8 characters";
+  if (form.assignedUserIds.length === 0) errors.assignedUserIds = "Assign at least one team member";
   return errors;
 }
 
@@ -138,7 +141,8 @@ export default function AdminClientsPage() {
         ...(form.gstin.trim() && { gstin: form.gstin.trim() }),
         ...(form.address.trim() && { address: form.address.trim() }),
         ...(form.portalPassword.trim() && { portalPassword: form.portalPassword.trim() }),
-        ...(form.accountManagerId && { accountManagerId: form.accountManagerId }),
+        assignedUserIds: form.assignedUserIds,
+        showOnPublicSite: form.showOnPublicSite,
       };
       const created = await api.post<Client>("/clients", payload, getAccessToken());
       success(
@@ -155,7 +159,7 @@ export default function AdminClientsPage() {
     }
   }
 
-  function field(key: keyof NewClientForm) {
+  function field(key: Exclude<keyof NewClientForm, "showOnPublicSite" | "assignedUserIds">) {
     return {
       value: form[key],
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -350,7 +354,7 @@ export default function AdminClientsPage() {
                 )}
               </label>
 
-              <div className="block text-sm">
+              <div className="min-w-0 block text-sm sm:col-span-2">
                 <span className="mb-1 block text-[var(--muted)]">Phone</span>
                 <PhoneInput
                   value={form.phone}
@@ -360,13 +364,14 @@ export default function AdminClientsPage() {
                   }}
                   onInvalidPaste={() => warning("Invalid paste", "Phone number must contain digits only.")}
                   error={!!formErrors.phone}
+                  className="max-w-[220px]"
                 />
                 {formErrors.phone && (
                   <p className="mt-1 text-xs text-danger">{formErrors.phone}</p>
                 )}
               </div>
 
-              <label className="block text-sm">
+              <label className="block text-sm sm:col-span-2">
                 <span className="mb-1 block text-[var(--muted)]">GSTIN</span>
                 <input
                   type="text"
@@ -392,20 +397,54 @@ export default function AdminClientsPage() {
                 />
               </label>
 
-              <label className="block text-sm sm:col-span-2">
-                <span className="mb-1 block text-[var(--muted)]">Assigned team member <span className="font-normal">(optional)</span></span>
-                <select
-                  value={form.accountManagerId}
-                  onChange={(e) => setForm((p) => ({ ...p, accountManagerId: e.target.value }))}
-                  className={inputClass("accountManagerId")}
-                >
-                  <option value="">Unassigned</option>
-                  {teamOptions.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}{t.designation ? ` — ${t.designation}` : ""}</option>
-                  ))}
-                </select>
+              <div className="block text-sm sm:col-span-2">
+                <span className="mb-1 block text-[var(--muted)]">Assigned team member(s) <span className="text-danger">*</span></span>
+                <div className={`max-h-40 space-y-0.5 overflow-y-auto rounded-lg border p-2 ${formErrors.assignedUserIds ? "border-danger" : "border-[var(--border)]"}`}>
+                  {teamOptions.length === 0 ? (
+                    <p className="px-2 py-1 text-xs text-[var(--muted)]">No team members yet — add one from the Team page first.</p>
+                  ) : (
+                    teamOptions.map((t) => (
+                      <label key={t.id} className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-[var(--ink)] hover:bg-[var(--surface-2)]">
+                        <input
+                          type="checkbox"
+                          checked={form.assignedUserIds.includes(t.id)}
+                          onChange={() => {
+                            setForm((p) => ({
+                              ...p,
+                              assignedUserIds: p.assignedUserIds.includes(t.id)
+                                ? p.assignedUserIds.filter((id) => id !== t.id)
+                                : [...p.assignedUserIds, t.id],
+                            }));
+                            if (formErrors.assignedUserIds) setFormErrors((prev) => ({ ...prev, assignedUserIds: undefined }));
+                          }}
+                          className="h-4 w-4 rounded border-[var(--border)] text-coral-500 focus:ring-coral-500"
+                        />
+                        {t.name}{t.designation ? ` — ${t.designation}` : ""}
+                      </label>
+                    ))
+                  )}
+                </div>
+                {formErrors.assignedUserIds && (
+                  <p className="mt-1 text-xs text-danger">{formErrors.assignedUserIds}</p>
+                )}
                 <span className="mt-1 block text-xs text-[var(--muted)]">
-                  Who this client's project is assigned to. Can be changed later from the client's page.
+                  Multiple team members can work on the same client. Can be changed later from the client's page.
+                </span>
+              </div>
+
+              <label className="flex items-start gap-2.5 text-sm sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={form.showOnPublicSite}
+                  onChange={(e) => setForm((p) => ({ ...p, showOnPublicSite: e.target.checked }))}
+                  className="mt-0.5 h-4 w-4 flex-shrink-0 accent-coral-500"
+                />
+                <span>
+                  <span className="block text-[var(--ink)]">Show on public website</span>
+                  <span className="block text-xs text-[var(--muted)]">
+                    Lists this client on the public &quot;Our Work&quot; page. Shows a &quot;Case study coming soon&quot;
+                    badge until one is uploaded from Case Studies.
+                  </span>
                 </span>
               </label>
             </div>

@@ -19,17 +19,30 @@ const clientInputSchema = z.object({
   phone: z.string().optional(),
   gstin: z.string().optional(),
   address: z.string().optional(),
-  // null explicitly clears the assignment; omitted leaves it untouched
-  accountManagerId: z.string().uuid().nullable().optional(),
   portalPassword: z.string().min(8).optional(), // if set, also creates a portal User account
+  showOnPublicSite: z.boolean().optional(),
+  // Team member(s) to assign on creation — mandatory, same as inviting a new
+  // teammate (see users.module.ts). Additive: never touches any OTHER
+  // client's assignments for these same users. Under .partial() (PATCH
+  // /:clientId, which never acts on this field anyway) this stays optional.
+  assignedUserIds: z.array(z.string().uuid()).min(1, "Assign at least one team member"),
 });
+
+const clientAssignmentsInclude = {
+  assignments: {
+    include: { user: { select: { id: true, name: true, designation: true } } },
+  },
+} as const;
 
 // GET /api/clients — admin/account manager: all clients. Client role: just their own.
 router.get(
   "/",
   asyncHandler(async (req, res) => {
     if (req.user!.role === Role.CLIENT) {
-      const own = await prisma.client.findUnique({ where: { id: req.user!.clientId! } });
+      const own = await prisma.client.findUnique({
+        where: { id: req.user!.clientId! },
+        include: clientAssignmentsInclude,
+      });
       return res.json(own ? [own] : []);
     }
 
@@ -37,7 +50,7 @@ router.get(
       orderBy: { createdAt: "desc" },
       include: {
         _count: { select: { clientServices: true } },
-        accountManager: { select: { id: true, name: true } },
+        ...clientAssignmentsInclude,
       },
     });
     res.json(clients);
@@ -53,7 +66,7 @@ router.get(
       where: { id: req.params.clientId },
       include: {
         clientServices: { include: { service: true } },
-        accountManager: { select: { id: true, name: true } },
+        ...clientAssignmentsInclude,
       },
     });
     if (!client) throw ApiError.notFound("Client not found");
@@ -61,12 +74,12 @@ router.get(
   })
 );
 
-/** Throws if `accountManagerId` is set but doesn't refer to a real, non-CLIENT team member. */
-async function assertValidAccountManager(accountManagerId: string | null | undefined) {
-  if (!accountManagerId) return;
-  const manager = await prisma.user.findUnique({ where: { id: accountManagerId } });
-  if (!manager || manager.role === Role.CLIENT) {
-    throw ApiError.badRequest("Selected team member is invalid");
+/** Throws if any id doesn't refer to a real, non-CLIENT team member. */
+async function assertValidTeamMembers(userIds: string[] | undefined) {
+  if (!userIds || userIds.length === 0) return;
+  const found = await prisma.user.findMany({ where: { id: { in: userIds } } });
+  if (found.length !== userIds.length || found.some((u) => u.role === Role.CLIENT)) {
+    throw ApiError.badRequest("One or more selected team members are invalid");
   }
 }
 
@@ -75,8 +88,8 @@ router.post(
   "/",
   authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
   asyncHandler(async (req, res) => {
-    const { portalPassword, ...clientData } = clientInputSchema.parse(req.body);
-    await assertValidAccountManager(clientData.accountManagerId);
+    const { portalPassword, assignedUserIds, ...clientData } = clientInputSchema.parse(req.body);
+    await assertValidTeamMembers(assignedUserIds);
 
     // Check if a User with this email already exists
     if (portalPassword) {
@@ -85,8 +98,13 @@ router.post(
     }
 
     const client = await prisma.client.create({
-      data: clientData,
-      include: { accountManager: { select: { id: true, name: true } } },
+      data: {
+        ...clientData,
+        ...(assignedUserIds && assignedUserIds.length > 0
+          ? { assignments: { create: assignedUserIds.map((userId) => ({ userId })) } }
+          : {}),
+      },
+      include: clientAssignmentsInclude,
     });
 
     let portalUser: { id: string } | null = null;
@@ -113,10 +131,10 @@ router.post(
       meta: { companyName: client.companyName, email: client.email },
     }).catch(() => undefined);
 
-    // Notify account manager if one is assigned
-    if (client.accountManagerId) {
+    // Notify every assigned team member
+    for (const a of client.assignments) {
       notify(
-        client.accountManagerId,
+        a.userId,
         "CLIENT_ONBOARDED",
         `New client onboarded: ${client.companyName}`,
         `/admin/clients/${client.id}`
@@ -142,13 +160,47 @@ router.patch(
   "/:clientId",
   authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
   asyncHandler(async (req, res) => {
-    const data = clientInputSchema.partial().parse(req.body);
-    await assertValidAccountManager(data.accountManagerId);
+    // Team assignment edits go through PATCH /:clientId/team instead — kept
+    // separate so this endpoint can't accidentally wipe existing assignments.
+    const { assignedUserIds: _ignored, ...data } = clientInputSchema.partial().parse(req.body);
     const client = await prisma.client.update({
       where: { id: req.params.clientId },
       data,
-      include: { accountManager: { select: { id: true, name: true } } },
+      include: clientAssignmentsInclude,
     });
+    res.json(client);
+  })
+);
+
+// PATCH /api/clients/:clientId/team — admin only
+// Replaces the full team roster for THIS client only (add/remove checkboxes
+// from the client's own edit page). Never touches any other client's rows,
+// so it can't accidentally unassign a team member from a different client.
+router.patch(
+  "/:clientId/team",
+  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  asyncHandler(async (req, res) => {
+    const { userIds } = z
+      .object({ userIds: z.array(z.string().uuid()).min(1, "Assign at least one team member") })
+      .parse(req.body);
+    await assertValidTeamMembers(userIds);
+
+    const clientId = req.params.clientId;
+    const existing = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!existing) throw ApiError.notFound("Client not found");
+
+    await prisma.$transaction([
+      prisma.clientAssignment.deleteMany({ where: { clientId, userId: { notIn: userIds } } }),
+      ...userIds.map((userId) =>
+        prisma.clientAssignment.upsert({
+          where: { clientId_userId: { clientId, userId } },
+          update: {},
+          create: { clientId, userId },
+        })
+      ),
+    ]);
+
+    const client = await prisma.client.findUnique({ where: { id: clientId }, include: clientAssignmentsInclude });
     res.json(client);
   })
 );
@@ -167,7 +219,10 @@ router.patch(
       })
       .parse(req.body);
 
-    const existing = await prisma.client.findUnique({ where: { id: req.params.clientId } });
+    const existing = await prisma.client.findUnique({
+      where: { id: req.params.clientId },
+      include: clientAssignmentsInclude,
+    });
     if (!existing) throw ApiError.notFound("Client not found");
 
     const updated = await prisma.client.update({
@@ -196,13 +251,16 @@ router.patch(
       meta: { companyName: existing.companyName, reason, notes, previousStatus: existing.status },
     }).catch(() => undefined);
 
-    if (existing.accountManagerId && existing.accountManagerId !== req.user!.userId) {
-      notify(
-        existing.accountManagerId,
-        "CLIENT_STATUS_CHANGED",
-        `${existing.companyName} has been ${actionLabel} (${reason}).`,
-        `/admin/clients/${existing.id}`
-      ).catch(() => undefined);
+    const assignedUserIds = existing.assignments.map((a) => a.userId).filter((id) => id !== req.user!.userId);
+    if (assignedUserIds.length > 0) {
+      for (const userId of assignedUserIds) {
+        notify(
+          userId,
+          "CLIENT_STATUS_CHANGED",
+          `${existing.companyName} has been ${actionLabel} (${reason}).`,
+          `/admin/clients/${existing.id}`
+        ).catch(() => undefined);
+      }
     } else {
       notifyAdmins(
         "CLIENT_STATUS_CHANGED",
@@ -278,46 +336,50 @@ router.delete(
   })
 );
 
-/** Shared by the admin-facing route (by clientId param) and the client-portal route (by session). */
+/** Shared by the admin-facing route (by clientId param) and the client-portal route (by session).
+ *  Returns per-member session activity — a client can now have several team
+ *  members assigned, so this is a list rather than a single assignee. */
 async function getTeamActivity(clientId: string) {
   const client = await prisma.client.findUnique({
     where: { id: clientId },
-    select: {
-      accountManager: {
-        select: { id: true, name: true, designation: true, photoUrl: true },
+    include: {
+      assignments: {
+        include: { user: { select: { id: true, name: true, designation: true, photoUrl: true } } },
       },
     },
   });
   if (!client) throw ApiError.notFound("Client not found");
 
-  if (!client.accountManager) {
-    return { member: null, sessions: [], totalActiveMinutes: 0 };
-  }
+  const members = await Promise.all(
+    client.assignments.map(async (a) => {
+      const sessions = await prisma.userSession.findMany({
+        where: { userId: a.user.id },
+        orderBy: { loginAt: "desc" },
+        take: 50,
+      });
 
-  const sessions = await prisma.userSession.findMany({
-    where: { userId: client.accountManager.id },
-    orderBy: { loginAt: "desc" },
-    take: 50,
-  });
+      // Only closed sessions count toward total active time — an open session
+      // (no logoutAt) means they're either still online or simply closed the
+      // tab without logging out, and we don't want to guess a fake duration.
+      const totalActiveMinutes = sessions.reduce((sum, s) => {
+        if (!s.logoutAt) return sum;
+        return sum + Math.round((s.logoutAt.getTime() - s.loginAt.getTime()) / 60000);
+      }, 0);
 
-  // Only closed sessions count toward total active time — an open session (no
-  // logoutAt) means they're either still online or simply closed the tab
-  // without logging out, and we don't want to guess a fake duration for that.
-  const totalActiveMinutes = sessions.reduce((sum, s) => {
-    if (!s.logoutAt) return sum;
-    return sum + Math.round((s.logoutAt.getTime() - s.loginAt.getTime()) / 60000);
-  }, 0);
+      return {
+        member: a.user,
+        sessions: sessions.map((s) => ({
+          id: s.id,
+          loginAt: s.loginAt,
+          logoutAt: s.logoutAt,
+          durationMinutes: s.logoutAt ? Math.round((s.logoutAt.getTime() - s.loginAt.getTime()) / 60000) : null,
+        })),
+        totalActiveMinutes,
+      };
+    })
+  );
 
-  return {
-    member: client.accountManager,
-    sessions: sessions.map((s) => ({
-      id: s.id,
-      loginAt: s.loginAt,
-      logoutAt: s.logoutAt,
-      durationMinutes: s.logoutAt ? Math.round((s.logoutAt.getTime() - s.loginAt.getTime()) / 60000) : null,
-    })),
-    totalActiveMinutes,
-  };
+  return { members };
 }
 
 // GET /api/clients/:clientId/team-activity — the assigned team member's portal
@@ -345,6 +407,35 @@ portalTeamActivityRouter.get(
     const clientId = req.user!.clientId;
     if (!clientId) throw ApiError.forbidden("No client associated with this account");
     res.json(await getTeamActivity(clientId));
+  })
+);
+
+// ── Public clients router (/api/public/clients) ───────────────────────────────
+// Unauthenticated — only clients the admin has opted into showing on the
+// public "Our Work" page, each paired with their case study if one exists.
+
+export const publicClientsRouter = Router();
+
+publicClientsRouter.get(
+  "/",
+  asyncHandler(async (_req, res) => {
+    const clients = await prisma.client.findMany({
+      where: { showOnPublicSite: true },
+      orderBy: { onboardedAt: "desc" },
+      include: {
+        caseStudies: { orderBy: { createdAt: "desc" }, take: 1 },
+      },
+    });
+
+    res.json(
+      clients.map((c) => ({
+        id: c.id,
+        companyName: c.companyName,
+        caseStudy: c.caseStudies[0]
+          ? { id: c.caseStudies[0].id, title: c.caseStudies[0].title, pdfUrl: c.caseStudies[0].pdfUrl }
+          : null,
+      }))
+    );
   })
 );
 

@@ -12,8 +12,13 @@ const pdfUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype === "application/pdf") cb(null, true);
-    else cb(new Error("Only PDF files are allowed"));
+    // Checked by mimetype AND extension — a mismatched/renamed file is
+    // rejected either way. Thrown as an ApiError so it surfaces as a clean
+    // 400 through the global error handler instead of a generic 500.
+    const isPdfMime = file.mimetype === "application/pdf";
+    const isPdfExt = file.originalname.toLowerCase().endsWith(".pdf");
+    if (isPdfMime && isPdfExt) cb(null, true);
+    else cb(ApiError.badRequest("Only PDF files are allowed"));
   },
 });
 
@@ -21,11 +26,14 @@ const pdfUpload = multer({
 
 export const publicCaseStudiesRouter = Router();
 
-// GET /api/public/case-studies — unauthenticated, returns safe fields only
+// GET /api/public/case-studies — unauthenticated, returns safe fields only.
+// Only for clients the admin has opted into public visibility — an uploaded
+// case study for a client that isn't publicly shown should never leak here.
 publicCaseStudiesRouter.get(
   "/",
   asyncHandler(async (_req, res) => {
     const caseStudies = await prisma.caseStudy.findMany({
+      where: { client: { showOnPublicSite: true } },
       include: { client: { select: { id: true, companyName: true } } },
       orderBy: { createdAt: "desc" },
     });
@@ -56,7 +64,16 @@ adminCaseStudiesRouter.get(
       include: { client: { select: { id: true, companyName: true } } },
       orderBy: { createdAt: "desc" },
     });
-    res.json(caseStudies);
+    res.json(
+      caseStudies.map((cs) => ({
+        id: cs.id,
+        clientId: cs.clientId,
+        clientName: cs.client.companyName,
+        title: cs.title,
+        pdfUrl: cs.pdfUrl,
+        createdAt: cs.createdAt,
+      }))
+    );
   })
 );
 
@@ -83,8 +100,11 @@ adminCaseStudiesRouter.post(
     await prisma.caseStudy.deleteMany({ where: { clientId } });
 
     const pdfUrl = await uploadToCloudinary(req.file.buffer, {
+      // .pdf in the public_id itself — raw uploads don't auto-append an
+      // extension, and a URL with no extension is what made "View PDF"
+      // unreliable across browsers.
       folder:        "divyash-case-studies",
-      public_id:     `case-study-${clientId}`,
+      public_id:     `case-study-${clientId}.pdf`,
       resource_type: "raw",
     });
 
@@ -93,7 +113,14 @@ adminCaseStudiesRouter.post(
       include: { client: { select: { id: true, companyName: true } } },
     });
 
-    res.status(201).json(caseStudy);
+    res.status(201).json({
+      id: caseStudy.id,
+      clientId: caseStudy.clientId,
+      clientName: caseStudy.client.companyName,
+      title: caseStudy.title,
+      pdfUrl: caseStudy.pdfUrl,
+      createdAt: caseStudy.createdAt,
+    });
   })
 );
 
