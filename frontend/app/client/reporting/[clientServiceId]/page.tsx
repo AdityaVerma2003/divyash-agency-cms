@@ -6,6 +6,8 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import PageLoader from "@/components/PageLoader";
+import Modal from "@/components/Modal";
+import { Icon } from "@/components/icons";
 import { REPORT_TYPE_LABELS } from "@/lib/reportTypes";
 import type { ReportType } from "@/types";
 
@@ -28,6 +30,17 @@ interface Column {
   label: string;
   render: (e: Entry) => React.ReactNode;
 }
+
+// The field each report type's date column reads from — also what "Today" /
+// "This month" export scoping filters on.
+const DATE_FIELD: Record<ReportType, string> = {
+  smm: "postedAt",
+  seo: "entryDate",
+  paidAds: "month",
+  graphicDesigning: "executionDate",
+  contentCreation: "executionDate",
+  websiteDevelopment: "createdAt",
+};
 
 const COLUMNS: Record<ReportType, Column[]> = {
   smm: [
@@ -102,6 +115,69 @@ const COLUMNS: Record<ReportType, Column[]> = {
   ],
 };
 
+// The 1-2 fields shown directly in the compact row, by column label — enough
+// to recognize the entry at a glance; everything else lives behind "View more".
+const PRIMARY_LABELS: Record<ReportType, string[]> = {
+  smm: ["Platform", "Profile reach"],
+  seo: ["Backlinks", "Traffic gain"],
+  paidAds: ["Campaign", "Spend"],
+  graphicDesigning: ["Type", "Items"],
+  contentCreation: ["Type"],
+  websiteDevelopment: ["Type", "Hosting"],
+};
+
+function cellText(col: Column, entry: Entry): string {
+  // Every column renders a plain string/number except "Website link" (an <a>
+  // element) — pull its raw value directly for CSV instead of stringifying JSX.
+  if (col.label === "Website link") return (entry.websiteLink as string) ?? "";
+  const rendered = col.render(entry);
+  return typeof rendered === "string" || typeof rendered === "number" ? String(rendered) : "";
+}
+
+function csvEscape(v: string): string {
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+function buildCsv(columns: Column[], rows: Entry[]): string {
+  const header = columns.map((c) => csvEscape(c.label)).join(",");
+  const lines = rows.map((entry) => columns.map((c) => csvEscape(cellText(c, entry))).join(","));
+  return [header, ...lines].join("\r\n");
+}
+
+function downloadCsv(filename: string, csv: string) {
+  // UTF-8 BOM so Excel (not just a text editor) opens it with correct encoding.
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoking synchronously can race with the browser actually starting the
+  // download in some engines — defer it to the next tick.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+type ExportScope = "today" | "month" | "all";
+const EXPORT_SCOPES: { value: ExportScope; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "month", label: "This month" },
+  { value: "all", label: "All" },
+];
+
+function scopeFilter(entries: Entry[], scope: ExportScope, dateField: string): Entry[] {
+  if (scope === "all") return entries;
+  const now = new Date();
+  return entries.filter((e) => {
+    const raw = e[dateField];
+    if (!raw) return false;
+    const d = new Date(raw as string);
+    if (scope === "today") return d.toDateString() === now.toDateString();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+}
+
 export default function ClientServiceReportingDetailPage() {
   const params = useParams();
   const clientServiceId = params.clientServiceId as string;
@@ -111,6 +187,7 @@ export default function ClientServiceReportingDetailPage() {
   const [serviceName, setServiceName] = useState<string>("");
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [detailEntry, setDetailEntry] = useState<Entry | null>(null);
 
   useEffect(() => {
     api
@@ -137,17 +214,45 @@ export default function ClientServiceReportingDetailPage() {
   if (!entries || !reportType) return <PageLoader fullScreen={false} />;
 
   const columns = COLUMNS[reportType];
+  const dateCol = columns[0];
+  const primaryCols = columns.filter((c) => PRIMARY_LABELS[reportType].includes(c.label));
+  const dateField = DATE_FIELD[reportType];
+
+  function handleExport(scope: ExportScope) {
+    const rows = scopeFilter(entries!, scope, dateField);
+    const csv = buildCsv(columns, rows);
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadCsv(`${serviceName || "report"}-${scope}-${stamp}.csv`, csv);
+  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <Link href="/client/dashboard" className="text-xs font-semibold text-[var(--muted)] hover:text-[var(--ink)]">
-          ← Back to dashboard
-        </Link>
-        <h1 className="mt-2 font-display text-xl font-bold text-[var(--ink)]">{serviceName}</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Detailed {REPORT_TYPE_LABELS[reportType]} reporting log — every update logged by your account manager.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Link href="/client/dashboard" className="text-xs font-semibold text-[var(--muted)] hover:text-[var(--ink)]">
+            ← Back to dashboard
+          </Link>
+          <h1 className="mt-2 font-display text-xl font-bold text-[var(--ink)]">{serviceName}</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Detailed {REPORT_TYPE_LABELS[reportType]} reporting log — every update logged by your account manager.
+          </p>
+        </div>
+
+        {entries.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Export</span>
+            {EXPORT_SCOPES.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => handleExport(s.value)}
+                className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold text-[var(--muted)] hover:border-coral-500 hover:text-coral-500 transition-all"
+              >
+                <Icon name="download" size={13} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {entries.length === 0 ? (
@@ -157,31 +262,43 @@ export default function ClientServiceReportingDetailPage() {
         </div>
       ) : (
         <div className="card overflow-hidden p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]">
-                <tr>
-                  {columns.map((col) => (
-                    <th key={col.label} className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide">
-                      {col.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((entry) => (
-                  <tr key={entry.id as string} className="border-b border-[var(--border)] last:border-0">
-                    {columns.map((col) => (
-                      <td key={col.label} className="whitespace-nowrap px-4 py-3 text-[var(--ink)]">
-                        {col.render(entry)}
-                      </td>
-                    ))}
-                  </tr>
+          <div className="divide-y divide-[var(--border)]">
+            {entries.map((entry) => (
+              <div key={entry.id as string} className="flex flex-wrap items-center gap-x-6 gap-y-1.5 px-4 py-3">
+                <span className="w-[92px] shrink-0 text-xs font-medium text-[var(--muted)]">{dateCol.render(entry)}</span>
+                {primaryCols.map((col) => (
+                  <span key={col.label} className="text-sm">
+                    <span className="text-[var(--muted)]">{col.label}: </span>
+                    <span className="font-semibold text-[var(--ink)]">{col.render(entry)}</span>
+                  </span>
                 ))}
-              </tbody>
-            </table>
+                <button
+                  onClick={() => setDetailEntry(entry)}
+                  className="ml-auto flex items-center gap-1 text-xs font-semibold text-coral-600 hover:underline"
+                >
+                  View more
+                  <Icon name="chevronRight" size={13} />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
+      )}
+
+      {detailEntry && (
+        <Modal title={`${REPORT_TYPE_LABELS[reportType]} entry — ${dateCol.render(detailEntry)}`} onClose={() => setDetailEntry(null)}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {columns.map((col) => (
+              <div key={col.label}>
+                <p className="text-xs text-[var(--muted)]">{col.label}</p>
+                <p className="text-sm font-medium text-[var(--ink)]">{col.render(detailEntry)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 flex justify-end">
+            <button type="button" onClick={() => setDetailEntry(null)} className="btn btn-ghost">Close</button>
+          </div>
+        </Modal>
       )}
     </div>
   );

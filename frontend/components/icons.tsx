@@ -43,7 +43,9 @@ export type IconName =
   | "video"
   | "mapPin"
   | "trash"
-  | "edit";
+  | "edit"
+  | "shield"
+  | "download";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -236,6 +238,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
       <path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </>
+  ),
+  shield: <path d="M12 2l8 3.5v5.3c0 5-3.4 8.9-8 10.2-4.6-1.3-8-5.2-8-10.2V5.5L12 2z" />,
+  download: (
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="M7 10l5 5 5-5M12 15V3" />
     </>
   ),
 };

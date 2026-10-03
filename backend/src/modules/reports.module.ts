@@ -1,25 +1,21 @@
 import { Router } from "express";
 import { Role, SubscriptionStatus } from "@prisma/client";
-import path from "path";
 import PDFDocument from "pdfkit";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/apiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { authenticate, authorize, scopeToOwnClient } from "../middleware/auth.middleware";
+import {
+  BRAND, MUTED, INK, LIGHT, LINE, MARGIN, PAGE_W,
+  HEADER_H, FOOTER_H, renderLetterheadHeader, renderLetterheadFooter,
+  FONT_REGULAR, FONT_BOLD, registerLetterheadFonts,
+} from "../lib/pdfLetterhead";
 
 const router = Router();
 router.use(authenticate);
 
-const LOGO_PATH = path.join(__dirname, "../../src/assets/logo.png");
-const BRAND  = "#6366F1";
-const MUTED  = "#6B7280";
-const INK    = "#101828";
-const LIGHT  = "#F4F5FF";
-const LINE   = "#E5E7EB";
 const GREEN  = "#059669";
 const AMBER  = "#D97706";
-const MARGIN = 45;
-const PAGE_W = 595 - MARGIN * 2;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function fmt(v: any) {
@@ -128,18 +124,15 @@ router.get(
     const hasLeads     = leads.length > 0;
     const hasInvoices  = invoices.length > 0;
 
-    const headerH      = 60;
-    const titleH       = 50;
     const servicesH    = 30 + activeServices.length * 20 + 20;
     const billingH     = hasInvoices  ? 30 + invoices.length * 22 + 60  : 0;
     const smmH         = hasSMM       ? 30 + 60 + 20                    : 0;
     const campaignsH   = hasCampaigns ? 30 + 60 + 20                    : 0;
     const leadsH       = hasLeads     ? 30 + 40 + 20                    : 0;
     const noDataH      = (!hasSMM && !hasCampaigns && !hasLeads) ? 40   : 0;
-    const footerH      = 50;
     const padding      = 60;
 
-    const contentH = headerH + titleH + servicesH + billingH + smmH + campaignsH + leadsH + noDataH + footerH + padding;
+    const contentH = HEADER_H + servicesH + billingH + smmH + campaignsH + leadsH + noDataH + FOOTER_H + padding;
     const pageH    = Math.max(841, contentH);
 
     // ── Build PDF ─────────────────────────────────────────────────
@@ -151,38 +144,23 @@ router.get(
     const filename = `${client.companyName.replace(/\s+/g, "_")}_Report_${year}-${String(month).padStart(2, "0")}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    registerLetterheadFonts(doc);
     doc.pipe(res);
 
     doc.addPage({ size: [595, pageH], margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN } });
 
-    /* ── Header ─────────────────────────────────────────────────── */
-    try { doc.image(LOGO_PATH, MARGIN, MARGIN, { width: 34, height: 34 }); } catch { /* skip */ }
-
-    doc.fontSize(14).fillColor(BRAND).font("Helvetica-Bold")
-      .text("Divyash Digital", MARGIN + 42, MARGIN + 4);
-    doc.fontSize(8).fillColor(MUTED).font("Helvetica")
-      .text("info@divyashdigital.co.in  ·  +91 88103 76026", MARGIN + 42, MARGIN + 21);
-
-    doc.fontSize(9).fillColor(MUTED).font("Helvetica")
-      .text(`Generated ${fmtDate(new Date())}`, MARGIN, MARGIN + 8, { width: PAGE_W, align: "right" });
-
-    const ruleY = MARGIN + 42;
-    doc.moveTo(MARGIN, ruleY).lineTo(MARGIN + PAGE_W, ruleY).strokeColor(BRAND).lineWidth(1.5).stroke();
-
-    /* ── Report title ───────────────────────────────────────────── */
-    let y = ruleY + 16;
-    doc.fontSize(18).fillColor(INK).font("Helvetica-Bold")
-      .text("Monthly Performance Report", MARGIN, y);
-    y += 24;
-    doc.fontSize(11).fillColor(MUTED).font("Helvetica")
-      .text(`${client.companyName}  ·  ${fmtMonth(periodStart)}`, MARGIN, y);
-    y += 28;
+    /* ── Header: shared letterhead ─────────────────────────────────── */
+    let y = renderLetterheadHeader(
+      doc,
+      "MONTHLY PERFORMANCE REPORT",
+      `${client.companyName}  ·  ${fmtMonth(periodStart)}  ·  Generated ${fmtDate(new Date())}`
+    );
 
     /* ── Section helper ─────────────────────────────────────────── */
     function sectionHeader(title: string) {
       doc.moveTo(MARGIN, y).lineTo(MARGIN + PAGE_W, y).strokeColor(LINE).lineWidth(0.4).stroke();
       y += 6;
-      doc.fontSize(7.5).fillColor(BRAND).font("Helvetica-Bold").text(title.toUpperCase(), MARGIN, y);
+      doc.fontSize(7.5).fillColor(BRAND).font(FONT_BOLD).text(title.toUpperCase(), MARGIN, y);
       y += 14;
     }
 
@@ -193,9 +171,9 @@ router.get(
         const row = Math.floor(i / cols);
         const cy = y + row * 52;
         doc.rect(cx + 2, cy, colW - 4, 46).fillColor(LIGHT).fill();
-        doc.fontSize(14).fillColor(item.color ?? INK).font("Helvetica-Bold")
+        doc.fontSize(14).fillColor(item.color ?? INK).font(FONT_BOLD)
           .text(item.value, cx + 8, cy + 8, { width: colW - 16 });
-        doc.fontSize(7.5).fillColor(MUTED).font("Helvetica")
+        doc.fontSize(7.5).fillColor(MUTED).font(FONT_REGULAR)
           .text(item.label, cx + 8, cy + 28, { width: colW - 16 });
         if (item.sub) {
           doc.fontSize(7).fillColor(MUTED).text(item.sub, cx + 8, cy + 37, { width: colW - 16 });
@@ -208,16 +186,16 @@ router.get(
     sectionHeader("Active Services");
     for (const s of activeServices) {
       doc.moveTo(MARGIN, y).lineTo(MARGIN + PAGE_W, y).strokeColor(LINE).lineWidth(0.3).stroke();
-      doc.fontSize(9).fillColor(INK).font("Helvetica-Bold")
+      doc.fontSize(9).fillColor(INK).font(FONT_BOLD)
         .text(s.service.name, MARGIN + 6, y + 5, { width: PAGE_W * 0.5 });
-      doc.fontSize(8).fillColor(MUTED).font("Helvetica")
+      doc.fontSize(8).fillColor(MUTED).font(FONT_REGULAR)
         .text(s.service.category.replace(/_/g, " "), MARGIN + PAGE_W * 0.5, y + 5, { width: PAGE_W * 0.25 });
-      doc.fontSize(8).fillColor(INK).font("Helvetica")
+      doc.fontSize(8).fillColor(INK).font(FONT_REGULAR)
         .text(fmt(s.rate) + " / " + s.billingCycle.toLowerCase(), MARGIN, y + 5, { width: PAGE_W - 6, align: "right" });
       y += 20;
     }
     if (activeServices.length === 0) {
-      doc.fontSize(9).fillColor(MUTED).font("Helvetica").text("No active services.", MARGIN, y);
+      doc.fontSize(9).fillColor(MUTED).font(FONT_REGULAR).text("No active services.", MARGIN, y);
       y += 16;
     }
     y += 10;
@@ -236,11 +214,11 @@ router.get(
       for (const inv of invoices) {
         const paid = inv.payments.reduce((s, p) => s + Number(p.amount), 0);
         doc.moveTo(MARGIN, y).lineTo(MARGIN + PAGE_W, y).strokeColor(LINE).lineWidth(0.3).stroke();
-        doc.fontSize(8.5).fillColor(INK).font("Helvetica")
+        doc.fontSize(8.5).fillColor(INK).font(FONT_REGULAR)
           .text(inv.invoiceNumber, MARGIN + 6, y + 5, { width: 130 })
           .text(fmtDate(inv.issuedDate), MARGIN + 140, y + 5, { width: 120 })
           .text(inv.status.replace(/_/g, " "), MARGIN + 270, y + 5, { width: 100 });
-        doc.fontSize(8.5).fillColor(INK).font("Helvetica-Bold")
+        doc.fontSize(8.5).fillColor(INK).font(FONT_BOLD)
           .text(fmt(inv.totalAmount), MARGIN, y + 5, { width: PAGE_W - 6, align: "right" });
         y += 22;
       }
@@ -291,20 +269,13 @@ router.get(
     /* ── No performance data notice ─────────────────────────────── */
     if (!hasSMM && !hasCampaigns && !hasLeads) {
       sectionHeader("Performance Data");
-      doc.fontSize(9).fillColor(MUTED).font("Helvetica")
+      doc.fontSize(9).fillColor(MUTED).font(FONT_REGULAR)
         .text("No performance data recorded for this period.", MARGIN, y);
       y += 20;
     }
 
-    /* ── Footer ─────────────────────────────────────────────────── */
-    const footerY = pageH - 38;
-    doc.moveTo(MARGIN, footerY).lineTo(MARGIN + PAGE_W, footerY).strokeColor(LINE).lineWidth(0.4).stroke();
-    doc.fontSize(7.5).fillColor(MUTED).font("Helvetica")
-      .text(
-        `${client.companyName}  ·  ${fmtMonth(periodStart)} Report  ·  Divyash Digital  ·  divyashdigital.co.in`,
-        MARGIN, footerY + 10,
-        { width: PAGE_W, align: "center" }
-      );
+    /* ── Footer: shared letterhead ─────────────────────────────────── */
+    renderLetterheadFooter(doc, pageH, `${client.companyName} · ${fmtMonth(periodStart)} Report`);
 
     doc.end();
 

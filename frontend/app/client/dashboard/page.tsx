@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -259,19 +262,22 @@ function MetricTile({
   );
 }
 
-/* ── Mini monthly trend chart embedded in a service card ─────────────────── */
-function monthlySeriesFor(metric: PerServiceMetric): { data: Record<string, number>; label: string } | null {
-  if ("reachByMonth" in metric) return { data: metric.reachByMonth, label: "Profile reach" };
-  if ("leadsByMonth" in metric) return { data: metric.leadsByMonth, label: "Leads" };
-  if ("trafficByMonth" in metric) return { data: metric.trafficByMonth, label: "Traffic gain" };
-  if ("itemsByMonth" in metric) return { data: metric.itemsByMonth, label: "Items delivered" };
+/* ── Per-service trend chart: real monthly data, chart type matched to what
+     the metric actually is (a continuous rate vs. a discrete delivery count) ── */
+function trendSeriesFor(
+  metric: PerServiceMetric
+): { data: Record<string, number>; label: string; kind: "line" | "bar" } | null {
+  if ("reachByMonth" in metric) return { data: metric.reachByMonth, label: "Profile reach", kind: "line" };
+  if ("leadsByMonth" in metric) return { data: metric.leadsByMonth, label: "Leads", kind: "line" };
+  if ("trafficByMonth" in metric) return { data: metric.trafficByMonth, label: "Traffic gain", kind: "line" };
+  // Items delivered is a discrete count per month (design files, articles…) —
+  // a bar reads as "this many delivered in this month" more honestly than a
+  // line, which implies continuous movement between the points.
+  if ("itemsByMonth" in metric) return { data: metric.itemsByMonth, label: "Items delivered", kind: "bar" };
   return null;
 }
 
-function MiniTrendChart({ data, color }: { data: Record<string, number>; color: string }) {
-  // `data` is sparse (only months with an entry), so zero-fill a real 6-month
-  // window ending this month — otherwise a single data point renders as one
-  // bar stretched across the whole chart, looking like a solid block.
+function zeroFillSixMonths(data: Record<string, number>): { month: string; value: number }[] {
   const now = new Date();
   const chartData: { month: string; value: number }[] = [];
   for (let i = 5; i >= 0; i--) {
@@ -279,16 +285,84 @@ function MiniTrendChart({ data, color }: { data: Record<string, number>; color: 
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     chartData.push({ month: formatMonth(key), value: data[key] ?? 0 });
   }
+  return chartData;
+}
+
+function ServiceTrendChart({
+  data,
+  label,
+  kind,
+  color,
+}: {
+  data: Record<string, number>;
+  label: string;
+  kind: "line" | "bar";
+  color: string;
+}) {
+  const chartData = zeroFillSixMonths(data);
   const hasData = chartData.some((d) => d.value > 0);
   if (!hasData) return null;
 
   return (
-    <div className="mt-3 h-12">
+    <div className="mt-3 h-28">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">{label} — last 6 months</p>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <Bar dataKey="value" fill={color} radius={[2, 2, 0, 0]} />
-        </BarChart>
+        {kind === "bar" ? (
+          <BarChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey="month" tick={{ fill: "var(--muted)", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: "var(--muted)", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <Tooltip content={<ChartTooltip />} />
+            <Bar dataKey="value" name={label} fill={color} radius={[3, 3, 0, 0]} />
+          </BarChart>
+        ) : (
+          <LineChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey="month" tick={{ fill: "var(--muted)", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => formatNumber(v)} tick={{ fill: "var(--muted)", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip content={<ChartTooltip />} />
+            <Line type="monotone" dataKey="value" name={label} stroke={color} strokeWidth={2} dot={{ fill: color, r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} />
+          </LineChart>
+        )}
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ── SMM only: organic vs paid post split — a real, meaningful part-of-whole
+     breakdown, which is exactly what a pie chart is for (anything else on
+     this dashboard is a magnitude-over-time trend, which a pie can't show). ── */
+function OrganicVsPaidPie({ organicCount, paidCount }: { organicCount: number; paidCount: number }) {
+  if (organicCount + paidCount === 0) return null;
+  const data = [
+    { name: "Organic", value: organicCount, color: "#2DBFA0" },
+    { name: "Paid", value: paidCount, color: "#6366F1" },
+  ].filter((d) => d.value > 0);
+
+  return (
+    <div className="mt-3 flex items-center gap-3">
+      <div className="h-20 w-20 flex-shrink-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={data} dataKey="value" nameKey="name" innerRadius={22} outerRadius={36} paddingAngle={2} stroke="var(--surface)" strokeWidth={2}>
+              {data.map((d) => (
+                <Cell key={d.name} fill={d.color} />
+              ))}
+            </Pie>
+            <Tooltip content={<ChartTooltip />} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Organic vs paid posts</p>
+        {data.map((d) => (
+          <div key={d.name} className="flex items-center gap-1.5 text-xs">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
+            <span className="text-[var(--muted)]">{d.name}</span>
+            <span className="font-semibold text-[var(--ink)]">{d.value}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -311,7 +385,7 @@ function ServicePerfCard({ metric }: { metric: PerServiceMetric }) {
   const dot = cfg?.dot ?? "#6B7280";
   const iconBg = cfg?.iconBg ?? "#6B7280";
   const reportType = reportTypeForCategory(metric.category);
-  const trend = monthlySeriesFor(metric);
+  const trend = trendSeriesFor(metric);
 
   return (
     <CardShell
@@ -406,7 +480,10 @@ function ServicePerfCard({ metric }: { metric: PerServiceMetric }) {
         </div>
       )}
 
-      {trend && <MiniTrendChart data={trend.data} color={iconBg} />}
+      {"organicCount" in metric && (
+        <OrganicVsPaidPie organicCount={metric.organicCount} paidCount={metric.paidCount} />
+      )}
+      {trend && <ServiceTrendChart data={trend.data} label={trend.label} kind={trend.kind} color={iconBg} />}
     </CardShell>
   );
 }
@@ -436,111 +513,70 @@ function ChartTooltip({
   );
 }
 
-/* ── Reach over time chart ───────────────────────────────────────────────── */
-function ReachChart({ data }: { data: { month: string; totalReach: number }[] }) {
-  const hasData = data.some((d) => d.totalReach > 0);
-  const chartData = data.map((d) => ({ ...d, month: formatMonth(d.month) }));
-
-  return (
-    <div className="card p-0 overflow-hidden">
-      <div className="p-5">
-        <div className="mb-4">
-          <p className="section-label">Reach over time</p>
-          <p className="text-xs text-[var(--muted)] mt-0.5">Monthly organic reach across all social posts</p>
-        </div>
-
-        {!hasData ? (
+/* ── Marketing ROI summary (replaces the old account-wide Reach/Leads
+     charts — those are now per-service, see ServiceTrendChart/OrganicVsPaidPie
+     above) ──────────────────────────────────────────────────────────────── */
+function MarketingRoiCard({ roi }: { roi: ClientDashboardSummary["marketingRoi"] }) {
+  if (!roi) {
+    return (
+      <div className="card p-0 overflow-hidden">
+        <div className="p-5">
+          <p className="section-label mb-0.5">Marketing ROI</p>
+          <p className="text-xs text-[var(--muted)] mb-4">Return on your paid-ads spend</p>
           <EmptyState
-            title="No reach data yet"
-            description="Posts published by your team will appear here once data is logged."
+            title="No paid-ads data yet"
+            description="Once your account manager logs paid campaign reports, your return on ad spend will appear here."
           />
-        ) : (
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="reachGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0284C7" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#0284C7" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: "var(--muted)", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tickFormatter={(v) => formatNumber(v)}
-                tick={{ fill: "var(--muted)", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={<ChartTooltip />}
-              />
-              <Area
-                type="monotone"
-                dataKey="totalReach"
-                name="Reach"
-                stroke="#0284C7"
-                strokeWidth={2}
-                fill="url(#reachGrad)"
-                dot={{ fill: "#0284C7", r: 3, strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: "#0284C7" }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
+        </div>
       </div>
-    </div>
-  );
-}
-
-/* ── Leads over time chart ───────────────────────────────────────────────── */
-function LeadsChart({ data }: { data: { month: string; count: number; revenueAttributed: number }[] }) {
-  const hasData = data.some((d) => d.count > 0);
-  const chartData = data.map((d) => ({ ...d, month: formatMonth(d.month) }));
+    );
+  }
+  const data = [{ name: "ROAS", value: Math.max(roi.avgRoasPct, 0), fill: roi.avgRoasPct >= 100 ? "#059669" : "#D97706" }];
 
   return (
     <div className="card p-0 overflow-hidden">
       <div className="p-5">
-        <div className="mb-4">
-          <p className="section-label">Lead pipeline</p>
-          <p className="text-xs text-[var(--muted)] mt-0.5">Monthly new leads and attributed revenue</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="section-label">Marketing ROI</p>
+            <p className="text-xs text-[var(--muted)] mt-0.5">
+              Spend-weighted average return across {roi.sampleSize} logged campaign report{roi.sampleSize !== 1 ? "s" : ""}
+            </p>
+          </div>
         </div>
-
-        {!hasData ? (
-          <EmptyState
-            title="No leads logged yet"
-            description="Your account manager will log leads as they come in from your campaigns."
-          />
-        ) : (
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: "var(--muted)", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "var(--muted)", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={
-                  <ChartTooltip
-                    formatter={(v) => v.toLocaleString("en-IN")}
-                  />
-                }
-              />
-              <Bar dataKey="count" name="Leads" fill="#7C3AED" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
+        <div className="flex items-center gap-6">
+          <div className="relative h-28 w-28 flex-shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[{ value: Math.min(roi.avgRoasPct, 200) }, { value: Math.max(200 - Math.min(roi.avgRoasPct, 200), 0) }]}
+                  dataKey="value"
+                  innerRadius={38}
+                  outerRadius={50}
+                  startAngle={90}
+                  endAngle={-270}
+                  stroke="none"
+                >
+                  <Cell fill={data[0].fill} />
+                  <Cell fill="var(--surface-2)" />
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className="font-display text-xl font-extrabold tabular-nums text-[var(--ink)]">{roi.avgRoasPct.toFixed(0)}%</p>
+              <p className="text-[9px] text-[var(--muted)]">avg. return</p>
+            </div>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div>
+              <p className="text-[var(--muted)] text-xs">Total paid-ads spend</p>
+              <p className="font-semibold text-[var(--ink)]">{formatCurrency(roi.totalAdSpend)}</p>
+            </div>
+            <p className="text-xs text-[var(--muted)] max-w-[220px] leading-relaxed">
+              Weighted by spend per campaign, so a small test campaign can't skew the figure as much as your biggest one.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -628,10 +664,6 @@ export default function ClientDashboardPage() {
       "websiteLink" in m
   );
 
-  // Aggregate totals for snapshot strip
-  const totalReachAll = summary.reachTrend.reduce((s, d) => s + d.totalReach, 0);
-  const totalLeadsAll = summary.leadsTrend.reduce((s, d) => s + d.count, 0);
-
   const visiblePosts = summary.recentPosts.slice(0, shownPosts);
 
   return (
@@ -688,14 +720,18 @@ export default function ClientDashboardPage() {
         </div>
       )}
 
-      {/* ── KPI quad ──────────────────────────────────── */}
+      {/* ── KPI quad — total investment and service count are straight sums
+          of real payment/subscription rows; Marketing ROI and Ad spend come
+          from the same spend-weighted calculation as the ROI card below, and
+          both render "—" (never a fabricated figure) when there's no
+          paid-ads data yet. ── */}
       {!isSuspended && (
         <StatQuad
           items={[
-            { label: "Total reach (6 mo)", value: formatNumber(totalReachAll), dotColor: "#2DBFA0" },
-            { label: "Leads (6 mo)", value: String(totalLeadsAll), dotColor: "#5B7CF7" },
-            { label: "Total invested", value: formatCurrency(summary.totalSpendAmount), dotColor: "#6366F1" },
+            { label: "Total investment", value: formatCurrency(summary.totalSpendAmount), dotColor: "#6366F1" },
             { label: "Active services", value: String(summary.activeServices.length), dotColor: "#F59E0B" },
+            { label: "Marketing ROI", value: summary.marketingRoi ? `${summary.marketingRoi.avgRoasPct.toFixed(0)}%` : "—", dotColor: "#059669" },
+            { label: "Paid-ads spend", value: summary.marketingRoi ? formatCurrency(summary.marketingRoi.totalAdSpend) : "—", dotColor: "#7C3AED" },
           ]}
         />
       )}
@@ -735,10 +771,9 @@ export default function ClientDashboardPage() {
             )
           )}
 
-          {/* ── Trend charts ─────────────────────────── */}
-          <section className="space-y-4">
-            <ReachChart data={summary.reachTrend} />
-            <LeadsChart data={summary.leadsTrend} />
+          {/* ── Marketing ROI ─────────────────────────── */}
+          <section>
+            <MarketingRoiCard roi={summary.marketingRoi} />
           </section>
 
           {/* ── Active services ──────────────────────── */}
@@ -962,45 +997,8 @@ export default function ClientDashboardPage() {
             </div>
           )}
 
-          {/* Total invested */}
-          {summary.totalSpendAmount > 0 && (
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <p className="section-label mb-2">Total invested</p>
-              <p className="font-display text-2xl font-extrabold tabular-nums text-[var(--ink)]">
-                {formatCurrency(summary.totalSpendAmount)}
-              </p>
-              <p className="mt-0.5 text-xs text-[var(--muted)]">all time with Divyash Digital</p>
-            </div>
-          )}
-
-          {/* Quick leads summary */}
-          {totalLeadsAll > 0 && (
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <p className="section-label mb-3">Lead pipeline (6 mo)</p>
-              <div className="space-y-2">
-                {summary.leadsTrend
-                  .filter((d) => d.count > 0)
-                  .slice(-3)
-                  .reverse()
-                  .map((d) => (
-                    <div
-                      key={d.month}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <span className="text-[var(--muted)]">{formatMonth(d.month)}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[var(--ink)]">{d.count} leads</span>
-                        {d.revenueAttributed > 0 && (
-                          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                            {formatCurrency(d.revenueAttributed)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
+          {/* Total invested and Marketing ROI are both already in the top
+              KPI quad / main-column ROI card — no need to repeat them here. */}
 
           {/* Agreement details */}
           {clientInfo?.agreementDetails && (

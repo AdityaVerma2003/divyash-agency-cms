@@ -65,6 +65,12 @@ function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 }
 
+function fmtDateTime(d: Date | string) {
+  return new Date(d).toLocaleString("en-IN", {
+    day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true,
+  });
+}
+
 /* ── Payment receipt ─────────────────────────────────────────────────────── */
 export function paymentReceiptHtml(opts: {
   clientName: string;
@@ -154,6 +160,44 @@ export function invoiceReminderHtml(opts: {
     </p>`;
 
   return base(body);
+}
+
+/* ── Meeting scheduled ───────────────────────────────────────────────────── */
+export function meetingScheduledHtml(opts: {
+  recipientName?: string;
+  title: string;
+  description?: string | null;
+  startAt: Date | string;
+  endAt: Date | string;
+  meetingUrl: string;
+  organizerName: string;
+}): string {
+  const { recipientName, title, description, startAt, endAt, meetingUrl, organizerName } = opts;
+
+  const body = `
+    <h2 style="margin:0 0 4px;font-size:18px;color:#101828;">Meeting scheduled</h2>
+    <p style="margin:0 0 20px;font-size:14px;color:#6B7280;">
+      Hi${recipientName ? ` ${recipientName}` : ""}, an online meeting has been scheduled by <strong>${organizerName}</strong>.
+    </p>
+
+    <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:20px;">
+      ${row("Meeting", title)}
+      ${row("Starts", fmtDateTime(startAt))}
+      ${row("Ends", fmtDateTime(endAt))}
+      ${description ? row("Notes", description) : ""}
+    </table>
+
+    ${btn("Join meeting", meetingUrl)}
+
+    <p style="margin-top:24px;font-size:13px;color:#6B7280;">
+      Questions? Contact us at info@divyashdigital.co.in or +91 88103 76026.
+    </p>`;
+
+  return base(body);
+}
+
+export function meetingScheduledSubject(title: string) {
+  return `Meeting scheduled – ${title} | Divyash Digital`;
 }
 
 /* ── Subject lines ───────────────────────────────────────────────────────── */

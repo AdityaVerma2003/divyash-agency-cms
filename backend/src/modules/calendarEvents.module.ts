@@ -7,6 +7,8 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { logAudit } from "../lib/audit";
 import { notify } from "../lib/notify";
+import { sendEmail } from "../lib/email";
+import { meetingScheduledHtml, meetingScheduledSubject } from "../lib/emailTemplates";
 
 /**
  * Local calendar events. Google Calendar sync is a deliberate follow-up — it
@@ -24,6 +26,10 @@ const eventInputSchema = z
     mode: z.nativeEnum(EventMode).default(EventMode.OFFLINE),
     location: z.string().max(300).optional(),
     meetingUrl: z.string().url().max(500).optional().or(z.literal("")),
+    // The client being met with for an ONLINE meeting — ad-hoc, not tied to a
+    // registered Client row (see schema.prisma). Used only to send the
+    // "meeting scheduled" email; never required.
+    clientEmail: z.string().email().max(255).optional().or(z.literal("")),
     colorTag: z.string().max(30).optional(),
     clientId: z.string().uuid().optional(),
     attendeeIds: z.array(z.string().uuid()).default([]),
@@ -103,6 +109,7 @@ router.post(
         mode: data.mode,
         location: data.mode === EventMode.OFFLINE ? data.location : null,
         meetingUrl: data.mode === EventMode.ONLINE ? data.meetingUrl || null : null,
+        clientEmail: data.mode === EventMode.ONLINE ? data.clientEmail || null : null,
         colorTag: data.colorTag,
         clientId: data.clientId,
         createdById: req.user!.userId,
@@ -114,6 +121,33 @@ router.post(
     for (const userId of data.attendeeIds.filter((id) => id !== req.user!.userId)) {
       notify(userId, "EVENT_INVITE", `You were added to "${event.title}"`, "/admin/calendar").catch(() => undefined);
     }
+
+    // Email the client (if an email was given) and the organizer who
+    // scheduled it — a real inbox confirmation, not just an in-app notification.
+    if (event.mode === EventMode.ONLINE && event.meetingUrl) {
+      const organizer = await prisma.user.findUnique({ where: { id: req.user!.userId }, select: { name: true, email: true } });
+      const organizerName = organizer?.name ?? "Your account manager";
+      const mailOpts = {
+        title: event.title,
+        description: event.description,
+        startAt: event.startAt,
+        endAt: event.endAt,
+        meetingUrl: event.meetingUrl,
+        organizerName,
+      };
+      const recipients = [
+        ...(event.clientEmail ? [{ email: event.clientEmail, name: undefined as string | undefined }] : []),
+        ...(organizer?.email ? [{ email: organizer.email, name: organizer.name }] : []),
+      ];
+      for (const r of recipients) {
+        sendEmail(
+          r.email,
+          meetingScheduledSubject(event.title),
+          meetingScheduledHtml({ ...mailOpts, recipientName: r.name })
+        ).catch((err) => console.error(`Failed to send meeting-scheduled email to ${r.email}:`, err));
+      }
+    }
+
     logAudit({
       userId: req.user!.userId,
       action: "CREATE",
@@ -151,6 +185,7 @@ router.patch(
         mode: data.mode,
         location: data.mode === EventMode.OFFLINE ? data.location : null,
         meetingUrl: data.mode === EventMode.ONLINE ? data.meetingUrl || null : null,
+        clientEmail: data.mode === EventMode.ONLINE ? data.clientEmail || null : null,
         colorTag: data.colorTag,
         clientId: data.clientId ?? null,
         attendees: {

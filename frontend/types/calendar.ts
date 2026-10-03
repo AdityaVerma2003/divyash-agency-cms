@@ -16,6 +16,7 @@ export interface CalendarEvent {
   mode: EventMode;
   location: string | null;
   meetingUrl: string | null;
+  clientEmail: string | null;
   colorTag: string | null;
   clientId: string | null;
   client: { id: string; companyName: string } | null;

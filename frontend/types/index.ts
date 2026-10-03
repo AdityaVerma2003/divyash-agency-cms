@@ -422,6 +422,9 @@ export interface ClientDashboardSummary {
   perService: PerServiceMetric[];
   reachTrend: { month: string; totalReach: number }[];
   leadsTrend: { month: string; count: number; revenueAttributed: number }[];
+  /** Spend-weighted average return across every Paid Ads entry ever logged
+   * for this client — null (not 0) when there's no paid-ads data yet. */
+  marketingRoi: { avgRoasPct: number; totalAdSpend: number; sampleSize: number } | null;
 }
 
 export interface BlogPost {

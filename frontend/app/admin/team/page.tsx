@@ -8,6 +8,9 @@ import { useToast } from "@/components/Toast";
 import { DESIGNATIONS } from "@/lib/designations";
 import { parseBankDetails } from "@/lib/bankDetails";
 import PageLoader from "@/components/PageLoader";
+import { Icon, type IconName } from "@/components/icons";
+
+type ReportTypeKey = "SMM" | "SEO" | "PAID_ADS" | "DESIGN" | "CONTENT" | "WEB_DEV";
 
 interface TeamMember {
   id: string;
@@ -22,22 +25,38 @@ interface TeamMember {
   managedClients?: { id: string; companyName: string }[];
   /** Only present in the API response when the viewer is SUPER_ADMIN */
   bankDetails?: string | null;
+  /** The report categories this member may file entries for — independent of
+   * their primary `designation`, since one member can report across several
+   * categories/clients. SUPER_ADMIN-editable, see the "Reporting" modal below. */
+  reportTypes?: ReportTypeKey[];
 }
+
+const REPORT_TYPE_OPTIONS: { value: ReportTypeKey; label: string }[] = [
+  { value: "SMM", label: "Social Media Management" },
+  { value: "SEO", label: "SEO" },
+  { value: "PAID_ADS", label: "Paid Ads" },
+  { value: "DESIGN", label: "Graphic Design" },
+  { value: "CONTENT", label: "Content Creation" },
+  { value: "WEB_DEV", label: "Website Development" },
+];
 
 interface ClientOption {
   id: string;
   companyName: string;
 }
 
-const ROLE_CONFIG = {
-  SUPER_ADMIN: { label: "Super Admin", bg: "bg-violet-100 dark:bg-violet-900/30", text: "text-violet-700 dark:text-violet-300" },
-  ACCOUNT_MANAGER: { label: "Account Manager", bg: "bg-sky-100 dark:bg-sky-900/30", text: "text-sky-700 dark:text-sky-300" },
+// "Team Member" (not "Account Manager") — the role grants standard portal
+// access regardless of what job title/designation the person actually holds,
+// so the role pill shouldn't itself look like a job title.
+const ROLE_CONFIG: Record<TeamMember["role"], { label: string; bg: string; text: string; icon: IconName }> = {
+  SUPER_ADMIN: { label: "Super Admin", bg: "bg-violet-100 dark:bg-violet-900/30", text: "text-violet-700 dark:text-violet-300", icon: "shield" },
+  ACCOUNT_MANAGER: { label: "Team Member", bg: "bg-sky-100 dark:bg-sky-900/30", text: "text-sky-700 dark:text-sky-300", icon: "briefcase" },
 };
 
-const ONBOARDING_CONFIG = {
-  INVITED: { label: "Invited", bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300" },
-  PENDING: { label: "Pending", bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-300" },
-  COMPLETE: { label: "Complete", bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-700 dark:text-emerald-300" },
+const ONBOARDING_CONFIG: Record<TeamMember["onboardingStatus"], { label: string; bg: string; text: string; icon: IconName }> = {
+  INVITED: { label: "Invited", bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300", icon: "clock" },
+  PENDING: { label: "Pending", bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-300", icon: "clock" },
+  COMPLETE: { label: "Complete", bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-700 dark:text-emerald-300", icon: "checkCircle" },
 };
 
 const AVATAR_COLORS = ["#6366F1", "#2DBFA0", "#5B7CF7", "#F87DA3", "#D97706", "#7C3AED"];
@@ -135,6 +154,44 @@ export default function AdminTeamPage() {
   const [editMember, setEditMember] = useState<TeamMember | null>(null);
   const [editClientIds, setEditClientIds] = useState<string[]>([]);
   const [savingAssignments, setSavingAssignments] = useState(false);
+
+  const [reportingMember, setReportingMember] = useState<TeamMember | null>(null);
+  const [reportingDesignation, setReportingDesignation] = useState("");
+  const [reportingTypes, setReportingTypes] = useState<ReportTypeKey[]>([]);
+  const [savingReporting, setSavingReporting] = useState(false);
+
+  function openReportingModal(m: TeamMember) {
+    setReportingMember(m);
+    setReportingDesignation(m.designation ?? "");
+    setReportingTypes(m.reportTypes ?? []);
+  }
+
+  function toggleReportType(rt: ReportTypeKey) {
+    setReportingTypes((p) => (p.includes(rt) ? p.filter((x) => x !== rt) : [...p, rt]));
+  }
+
+  async function saveReporting() {
+    if (!reportingMember) return;
+    setSavingReporting(true);
+    try {
+      await api.patch<TeamMember>(
+        `/users/${reportingMember.id}`,
+        { designation: reportingDesignation || undefined, reportTypes: reportingTypes },
+        getAccessToken()
+      );
+      setMembers((prev) =>
+        prev?.map((m) =>
+          m.id === reportingMember.id ? { ...m, designation: reportingDesignation, reportTypes: reportingTypes } : m
+        ) ?? null
+      );
+      success("Reporting updated", `${reportingMember.name}'s designation and report categories have been saved.`);
+      setReportingMember(null);
+    } catch (err) {
+      toastError("Could not update reporting", err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSavingReporting(false);
+    }
+  }
 
   function openEditAssignments(m: TeamMember) {
     setEditMember(m);
@@ -249,7 +306,8 @@ export default function AdminTeamPage() {
                       </p>
                     </div>
                   </div>
-                  <span className={`mt-0.5 shrink-0 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${obCfg.bg} ${obCfg.text}`}>
+                  <span className={`mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${obCfg.bg} ${obCfg.text}`}>
+                    <Icon name={obCfg.icon} size={11} />
                     {obCfg.label}
                   </span>
                 </div>
@@ -273,30 +331,54 @@ export default function AdminTeamPage() {
                   </div>
                 )}
 
-                {/* Role badge + actions */}
-                <div className="flex items-center justify-between mt-auto pt-2 border-t border-[var(--border)]">
-                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${roleCfg.bg} ${roleCfg.text}`}>
+                {/* Reporting categories — independent of the primary designation; a
+                    member can be ticked for several of these across clients. */}
+                {m.reportTypes && m.reportTypes.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {m.reportTypes.map((rt) => (
+                      <span key={rt} className="rounded-full bg-coral-50 px-2 py-0.5 text-[10px] font-semibold text-coral-600 dark:bg-coral-500/10 dark:text-coral-400">
+                        {REPORT_TYPE_OPTIONS.find((o) => o.value === rt)?.label ?? rt}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Role badge + actions — stacked so the action grid always has
+                    its own row and never fights the badge for width. */}
+                <div className="mt-auto space-y-3 pt-2 border-t border-[var(--border)]">
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${roleCfg.bg} ${roleCfg.text}`}>
+                    <Icon name={roleCfg.icon} size={11} />
                     {roleCfg.label}
                   </span>
                   {currentUserRole === "SUPER_ADMIN" && (
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => openReportingModal(m)}
+                        className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold text-[var(--muted)] hover:border-coral-500 hover:text-coral-500 transition-all"
+                      >
+                        <Icon name="reporting" size={14} />
+                        Reporting
+                      </button>
                       <button
                         onClick={() => setBankDetailsMember(m)}
-                        className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)] hover:border-coral-500 hover:text-coral-500 transition-all"
+                        className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold text-[var(--muted)] hover:border-coral-500 hover:text-coral-500 transition-all"
                       >
+                        <Icon name="billing" size={14} />
                         Bank details
                       </button>
                       <button
                         onClick={() => openEditAssignments(m)}
-                        className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)] hover:border-coral-500 hover:text-coral-500 transition-all"
+                        className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold text-[var(--muted)] hover:border-coral-500 hover:text-coral-500 transition-all"
                       >
+                        <Icon name="clients" size={14} />
                         Edit clients
                       </button>
                       <button
                         onClick={() => setConfirmMember(m)}
                         disabled={deletingId === m.id}
-                        className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)] hover:border-red-400 hover:text-red-500 transition-all disabled:opacity-40"
+                        className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold text-[var(--muted)] hover:border-red-400 hover:text-red-500 transition-all disabled:opacity-40"
                       >
+                        <Icon name="trash" size={14} />
                         {deletingId === m.id ? "…" : "Remove"}
                       </button>
                     </div>
@@ -405,6 +487,68 @@ export default function AdminTeamPage() {
         </Modal>
       )}
 
+      {/* Reporting modal — designation + report-type categories (Super Admin only).
+          A member's designation is just their job title; reportTypes is the
+          actual permission that gates which report forms they can submit, and
+          is independent of designation since one person can report across
+          several categories/clients. */}
+      {reportingMember && (
+        <Modal title={`Reporting — ${reportingMember.name}`} onClose={() => setReportingMember(null)}>
+          <div className="space-y-5">
+            <label className="block text-sm">
+              <span className="mb-1 block text-[var(--muted)]">Designation</span>
+              <select
+                value={reportingDesignation}
+                onChange={(e) => setReportingDesignation(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Not set</option>
+                {DESIGNATIONS.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-[var(--muted)]">
+                Their primary job title — shown on their profile and the public team page.
+              </span>
+            </label>
+
+            <div className="block text-sm">
+              <span className="mb-1 block text-[var(--muted)]">Report categories</span>
+              <div className="space-y-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+                {REPORT_TYPE_OPTIONS.map((opt) => (
+                  <label key={opt.value} className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-[var(--ink)] hover:bg-[var(--surface-2)]">
+                    <input
+                      type="checkbox"
+                      checked={reportingTypes.includes(opt.value)}
+                      onChange={() => toggleReportType(opt.value)}
+                      className="h-4 w-4 rounded border-[var(--border)] text-coral-500 focus:ring-coral-500"
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+              <span className="mt-1 block text-xs text-[var(--muted)]">
+                Which report forms {reportingMember.name} can submit — add or remove categories as they
+                take on different work across clients. This isn&apos;t tied to their designation above,
+                so a member can report on categories outside their job title when needed.
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-5 flex justify-end gap-3">
+            <button type="button" onClick={() => setReportingMember(null)} className="btn btn-ghost">Cancel</button>
+            <button
+              type="button"
+              onClick={saveReporting}
+              disabled={savingReporting}
+              className="btn btn-primary disabled:opacity-60"
+            >
+              {savingReporting ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* Invite modal — name, email, role only */}
       {showModal && (
         <Modal title="Invite teammate" onClose={() => setShowModal(false)}>
@@ -459,7 +603,7 @@ export default function AdminTeamPage() {
                   onChange={(e) => setForm((p) => ({ ...p, role: e.target.value as InviteForm["role"] }))}
                   className={inputClass}
                 >
-                  <option value="ACCOUNT_MANAGER">Account Manager — standard access</option>
+                  <option value="ACCOUNT_MANAGER">Team Member — default access</option>
                   <option value="SUPER_ADMIN">Super Admin — full access</option>
                 </select>
                 <span className="mt-1 block text-xs text-[var(--muted)]">

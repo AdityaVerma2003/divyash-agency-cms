@@ -47,6 +47,7 @@ export function EventModal({
   );
   const [location, setLocation] = useState(event?.location ?? "");
   const [meetingUrl, setMeetingUrl] = useState(event?.meetingUrl ?? "");
+  const [clientEmail, setClientEmail] = useState(event?.clientEmail ?? "");
   const [colorTag, setColorTag] = useState(event?.colorTag ?? "indigo");
   const [attendeeIds, setAttendeeIds] = useState<string[]>(event?.attendees.map((a) => a.id) ?? []);
   const [team, setTeam] = useState<TeamOption[] | null>(null);
@@ -70,6 +71,7 @@ export function EventModal({
         mode,
         location: mode === "OFFLINE" ? location : undefined,
         meetingUrl: mode === "ONLINE" ? meetingUrl : undefined,
+        clientEmail: mode === "ONLINE" ? clientEmail || undefined : undefined,
         colorTag,
         attendeeIds,
       };
@@ -131,10 +133,25 @@ export function EventModal({
             <input className={INPUT_CLS} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Office, address…" required />
           </label>
         ) : (
-          <label className="block text-sm">
-            <span className="mb-1 block text-[var(--muted)]">Meeting link</span>
-            <input className={INPUT_CLS} value={meetingUrl} onChange={(e) => setMeetingUrl(e.target.value)} placeholder="https://meet.google.com/…" required />
-          </label>
+          <>
+            <label className="block text-sm">
+              <span className="mb-1 block text-[var(--muted)]">Meeting link</span>
+              <input className={INPUT_CLS} value={meetingUrl} onChange={(e) => setMeetingUrl(e.target.value)} placeholder="https://meet.google.com/…" required />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block text-[var(--muted)]">Client email <span className="text-xs font-normal text-[var(--muted)]">(optional)</span></span>
+              <input
+                type="email"
+                className={INPUT_CLS}
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                placeholder="client@company.com"
+              />
+              <span className="mt-1 block text-xs text-[var(--muted)]">
+                If set, they&apos;ll get an email confirming this meeting (along with you) when it&apos;s created.
+              </span>
+            </label>
+          </>
         )}
 
         <div>

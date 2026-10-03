@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { InvoiceStatus, PaymentMethod, PaymentStatus, Role } from "@prisma/client";
 import { z } from "zod";
-import path from "path";
 import PDFDocument from "pdfkit";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/apiError";
@@ -11,6 +10,11 @@ import { logAudit } from "../lib/audit";
 import { notify, notifyAdmins } from "../lib/notify";
 import { sendEmail } from "../lib/email";
 import { paymentReceiptHtml, paymentReceiptSubject } from "../lib/emailTemplates";
+import {
+  BRAND, MUTED, INK, LIGHT, LINE, MARGIN, PAGE_W, A4_H,
+  HEADER_H, FOOTER_H, renderLetterheadHeader, renderLetterheadFooter,
+  FONT_REGULAR, FONT_BOLD, registerLetterheadFonts,
+} from "../lib/pdfLetterhead";
 
 const router = Router();
 router.use(authenticate);
@@ -96,17 +100,6 @@ router.get(
     const fmtDate = (d: Date | string) =>
       new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
-    const BRAND = "#6366F1";
-    const MUTED  = "#6B7280";
-    const INK    = "#101828";
-    const LIGHT  = "#F4F5FF";   // very light indigo tint for header rows
-    const LINE   = "#E5E7EB";
-
-    const LOGO_PATH = path.join(__dirname, "../../src/assets/logo.png");
-    const MARGIN  = 45;
-    const PAGE_W  = 595 - MARGIN * 2;   // A4 width = 595pt
-    const A4_H    = 841;
-
     const client = invoice.client as {
       companyName: string; contactPerson: string; email: string;
       address?: string | null; gstin?: string | null;
@@ -122,12 +115,10 @@ router.get(
     const paymentsH   = invoice.payments.length > 0
       ? 28 + 20 + invoice.payments.length * 22
       : 0;
-    const headerH     = 55;   // logo + divider
-    const footerH     = 80;   // generous bottom margin so footer never overlaps content
     const padding     = 40;
     const safetyPad   = 30;   // buffer for text-wrap variances
 
-    const contentH    = headerH + infoBlockH + itemsH + totalsH + paymentsH + footerH + padding + safetyPad;
+    const contentH    = HEADER_H + infoBlockH + itemsH + totalsH + paymentsH + FOOTER_H + padding + safetyPad;
     const pageH       = Math.max(A4_H, contentH);   // never shrink below A4; expand if needed
 
     // ── Create document with computed page size ──────────────────────
@@ -138,48 +129,28 @@ router.get(
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${invoice.invoiceNumber}.pdf"`);
+    registerLetterheadFonts(doc);
     doc.pipe(res);
 
     doc.addPage({ size: [595, pageH], margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN } });
 
-    /* ── Header: logo + brand + invoice title ───────────────────────── */
-    const LOGO_SIZE = 36;
-    try {
-      doc.image(LOGO_PATH, MARGIN, MARGIN, { width: LOGO_SIZE, height: LOGO_SIZE });
-    } catch {
-      // logo missing — skip silently
-    }
-
-    doc.fontSize(15).fillColor(BRAND).font("Helvetica-Bold")
-      .text("Divyash Digital", MARGIN + LOGO_SIZE + 8, MARGIN + 4);
-    doc.fontSize(8).fillColor(MUTED).font("Helvetica")
-      .text("info@divyashdigital.co.in  ·  +91 88103 76026", MARGIN + LOGO_SIZE + 8, MARGIN + 22);
-
-    // Right side — INVOICE heading
-    doc.fontSize(22).fillColor(INK).font("Helvetica-Bold")
-      .text("INVOICE", MARGIN, MARGIN, { width: PAGE_W, align: "right" });
-    doc.fontSize(9).fillColor(MUTED).font("Helvetica")
-      .text(invoice.invoiceNumber, MARGIN, MARGIN + 28, { width: PAGE_W, align: "right" });
-
-    // Brand rule
-    const ruleY = MARGIN + LOGO_SIZE + 10;
-    doc.moveTo(MARGIN, ruleY).lineTo(MARGIN + PAGE_W, ruleY)
-      .strokeColor(BRAND).lineWidth(1.5).stroke();
+    /* ── Header: shared letterhead ────────────────────────────────── */
+    const contentStartY = renderLetterheadHeader(doc, "INVOICE", invoice.invoiceNumber);
 
     /* ── Bill-to + invoice meta ─────────────────────────────────────── */
     const COL2 = MARGIN + PAGE_W * 0.55;
     const COL2W = PAGE_W * 0.45;
-    let y = ruleY + 14;
+    let y = contentStartY;
 
-    doc.fontSize(7).fillColor(BRAND).font("Helvetica-Bold")
+    doc.fontSize(7).fillColor(BRAND).font(FONT_BOLD)
       .text("BILL TO", MARGIN, y)
       .text("INVOICE DETAILS", COL2, y);
     y += 12;
 
     // Client info (left)
-    doc.fontSize(11).fillColor(INK).font("Helvetica-Bold").text(client.companyName, MARGIN, y);
+    doc.fontSize(11).fillColor(INK).font(FONT_BOLD).text(client.companyName, MARGIN, y);
     y += 14;
-    doc.fontSize(8.5).fillColor(INK).font("Helvetica").text(client.contactPerson, MARGIN, y);
+    doc.fontSize(8.5).fillColor(INK).font(FONT_REGULAR).text(client.contactPerson, MARGIN, y);
     y += 12;
     doc.fontSize(8.5).fillColor(MUTED).text(client.email, MARGIN, y);
     y += 12;
@@ -187,7 +158,7 @@ router.get(
     if (client.gstin)   { doc.text(`GSTIN: ${client.gstin}`, MARGIN, y); y += 12; }
 
     // Meta rows (right) — always start from same baseline
-    const metaStartY = ruleY + 26;
+    const metaStartY = contentStartY + 12;
     const metaRows: [string, string][] = [
       ["Invoice #",   invoice.invoiceNumber],
       ["Issued",      fmtDate(invoice.issuedDate)],
@@ -197,8 +168,8 @@ router.get(
     ];
     let ry = metaStartY;
     for (const [label, value] of metaRows) {
-      doc.fontSize(8).fillColor(MUTED).font("Helvetica").text(label, COL2, ry, { width: 65 });
-      doc.fontSize(8).fillColor(INK).font("Helvetica-Bold")
+      doc.fontSize(8).fillColor(MUTED).font(FONT_REGULAR).text(label, COL2, ry, { width: 65 });
+      doc.fontSize(8).fillColor(INK).font(FONT_BOLD)
         .text(value, COL2 + 68, ry, { width: COL2W - 68, align: "right" });
       ry += 14;
     }
@@ -207,12 +178,12 @@ router.get(
 
     /* ── Line items table ───────────────────────────────────────────── */
     // Section label
-    doc.fontSize(7).fillColor(BRAND).font("Helvetica-Bold").text("LINE ITEMS", MARGIN, y);
+    doc.fontSize(7).fillColor(BRAND).font(FONT_BOLD).text("LINE ITEMS", MARGIN, y);
     y += 10;
 
     // Table header
     doc.rect(MARGIN, y, PAGE_W, 20).fill(LIGHT);
-    doc.fontSize(7.5).fillColor(MUTED).font("Helvetica-Bold")
+    doc.fontSize(7.5).fillColor(MUTED).font(FONT_BOLD)
       .text("DESCRIPTION", MARGIN + 8, y + 6.5)
       .text("AMOUNT", MARGIN, y + 6.5, { width: PAGE_W - 8, align: "right" });
     y += 20;
@@ -220,7 +191,7 @@ router.get(
     // Rows
     for (const item of invoice.items) {
       doc.moveTo(MARGIN, y).lineTo(MARGIN + PAGE_W, y).strokeColor(LINE).lineWidth(0.4).stroke();
-      doc.fontSize(9).fillColor(INK).font("Helvetica")
+      doc.fontSize(9).fillColor(INK).font(FONT_REGULAR)
         .text(item.description, MARGIN + 8, y + 6, { width: PAGE_W - 100 })
         .text(fmt(item.amount), MARGIN, y + 6, { width: PAGE_W - 8, align: "right" });
       y += 24;
@@ -237,7 +208,7 @@ router.get(
       ["Tax",      fmt(invoice.taxAmount),   false],
     ];
     for (const [label, value] of totalRows) {
-      doc.fontSize(8.5).fillColor(MUTED).font("Helvetica")
+      doc.fontSize(8.5).fillColor(MUTED).font(FONT_REGULAR)
         .text(label, TR, y, { width: TW * 0.5 })
         .text(value, TR, y, { width: TW, align: "right" });
       y += 14;
@@ -245,7 +216,7 @@ router.get(
     // Total divider
     doc.moveTo(TR, y).lineTo(TR + TW, y).strokeColor(LINE).lineWidth(0.4).stroke();
     y += 7;
-    doc.fontSize(11).fillColor(INK).font("Helvetica-Bold")
+    doc.fontSize(11).fillColor(INK).font(FONT_BOLD)
       .text("Total", TR, y, { width: TW * 0.5 })
       .text(fmt(invoice.totalAmount), TR, y, { width: TW, align: "right" });
     y += 22;
@@ -253,11 +224,11 @@ router.get(
     /* ── Payment history ────────────────────────────────────────────── */
     if (invoice.payments.length > 0) {
       y += 6;
-      doc.fontSize(7).fillColor(BRAND).font("Helvetica-Bold").text("PAYMENTS RECEIVED", MARGIN, y);
+      doc.fontSize(7).fillColor(BRAND).font(FONT_BOLD).text("PAYMENTS RECEIVED", MARGIN, y);
       y += 10;
 
       doc.rect(MARGIN, y, PAGE_W, 18).fill(LIGHT);
-      doc.fontSize(7.5).fillColor(MUTED).font("Helvetica-Bold")
+      doc.fontSize(7.5).fillColor(MUTED).font(FONT_BOLD)
         .text("DATE",   MARGIN + 8, y + 5.5)
         .text("METHOD", MARGIN + 150, y + 5.5)
         .text("AMOUNT", MARGIN, y + 5.5, { width: PAGE_W - 8, align: "right" });
@@ -265,7 +236,7 @@ router.get(
 
       for (const p of invoice.payments) {
         doc.moveTo(MARGIN, y).lineTo(MARGIN + PAGE_W, y).strokeColor(LINE).lineWidth(0.4).stroke();
-        doc.fontSize(8.5).fillColor(INK).font("Helvetica")
+        doc.fontSize(8.5).fillColor(INK).font(FONT_REGULAR)
           .text(p.paidAt ? fmtDate(p.paidAt) : "—", MARGIN + 8, y + 5)
           .text((p.method as string).replace(/_/g, " "), MARGIN + 150, y + 5)
           .text(fmt(p.amount), MARGIN, y + 5, { width: PAGE_W - 8, align: "right" });
@@ -274,15 +245,8 @@ router.get(
       doc.moveTo(MARGIN, y).lineTo(MARGIN + PAGE_W, y).strokeColor(LINE).lineWidth(0.4).stroke();
     }
 
-    /* ── Footer ─────────────────────────────────────────────────────── */
-    const footerY = pageH - 38;
-    doc.moveTo(MARGIN, footerY).lineTo(MARGIN + PAGE_W, footerY).strokeColor(LINE).lineWidth(0.4).stroke();
-    doc.fontSize(7.5).fillColor(MUTED).font("Helvetica")
-      .text(
-        "Divyash Digital  ·  info@divyashdigital.co.in  ·  +91 88103 76026  ·  divyashdigital.co.in",
-        MARGIN, footerY + 10,
-        { width: PAGE_W, align: "center" },
-      );
+    /* ── Footer: shared letterhead ─────────────────────────────────── */
+    renderLetterheadFooter(doc, pageH);
 
     doc.end();
   })

@@ -8,6 +8,7 @@ import PageLoader from "@/components/PageLoader";
 import { Card, CardHeader } from "@/components/portal/Card";
 import { EmptyState } from "@/components/portal/EmptyState";
 import { REPORT_TYPE_LABELS } from "@/lib/reportTypes";
+import { ENTRY_DATE_FIELD, formatEntrySummary, entryAuthorName } from "@/lib/reportEntrySummary";
 import type { ReportType } from "@/types";
 import type { WorkspaceClientDetail } from "@/types/workspace";
 import SmmForm from "@/components/reporting/SmmForm";
@@ -23,24 +24,6 @@ const INPUT_CLS =
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
-
-const ENTRY_DATE_FIELD: Record<ReportType, string> = {
-  smm: "postedAt",
-  seo: "entryDate",
-  paidAds: "month",
-  graphicDesigning: "executionDate",
-  contentCreation: "executionDate",
-  websiteDevelopment: "createdAt",
-};
-
-const ENTRY_SUMMARY_FIELDS: Record<ReportType, string[]> = {
-  smm: ["postType", "platform", "marketingType"],
-  seo: ["backlinksCreated", "articleSubmissions", "trafficGain"],
-  paidAds: ["campaignName", "objective", "spend"],
-  graphicDesigning: ["designType", "itemCount"],
-  contentCreation: ["contentType"],
-  websiteDevelopment: ["websiteType", "hosting", "websiteLink"],
-};
 
 function EntryForm({ type, clientServiceId, onAdded }: { type: ReportType; clientServiceId: string; onAdded: () => void }) {
   switch (type) {
@@ -151,19 +134,18 @@ export default function ClientWorkspacePage() {
                         <tr>
                           <th>Date</th>
                           <th>Details</th>
+                          <th>Entered by</th>
                           <th />
                         </tr>
                       </thead>
                       <tbody>
                         {entries.map((entry) => (
                           <tr key={entry.id as string}>
-                            <td>{formatDate(entry[ENTRY_DATE_FIELD[selectedService.reportType!]] as string)}</td>
+                            <td className="whitespace-nowrap">{formatDate(entry[ENTRY_DATE_FIELD[selectedService.reportType!]] as string)}</td>
                             <td className="td-primary">
-                              {ENTRY_SUMMARY_FIELDS[selectedService.reportType!]
-                                .map((f) => entry[f])
-                                .filter((v) => v !== null && v !== undefined && v !== "")
-                                .join(" · ")}
+                              {formatEntrySummary(selectedService.reportType!, entry)}
                             </td>
+                            <td className="whitespace-nowrap">{entryAuthorName(entry)}</td>
                             <td className="text-right">
                               <button onClick={() => handleDelete(entry.id as string)} className="text-xs font-medium text-danger hover:underline">
                                 Delete

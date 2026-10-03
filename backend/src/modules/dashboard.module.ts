@@ -329,6 +329,33 @@ router.get(
           select: { month: true, leads: true },
         })
       : [];
+
+    // Marketing ROI — a spend-weighted average of each Paid Ads entry's
+    // reported return (not a plain mean-of-percentages, which would let a
+    // ₹500 test campaign skew the figure as much as a ₹5,00,000 one), over
+    // every entry ever logged for this client's paid-ads services. Null
+    // (never 0) when there's no paid-ads data to compute it from.
+    const roiEntries = adsIds.length > 0
+      ? await prisma.paidAdsReportEntry.findMany({
+          where: { clientServiceId: { in: adsIds } },
+          select: { spend: true, revenueGeneratedPct: true },
+        })
+      : [];
+    let roiSpendWeight = 0;
+    let roiWeightedSum = 0;
+    let roiTotalSpend = 0;
+    let roiSampleSize = 0;
+    for (const entry of roiEntries) {
+      const spend = Number(entry.spend);
+      roiTotalSpend += spend;
+      if (entry.revenueGeneratedPct == null || spend <= 0) continue;
+      roiWeightedSum += spend * Number(entry.revenueGeneratedPct);
+      roiSpendWeight += spend;
+      roiSampleSize += 1;
+    }
+    const marketingRoi = roiSampleSize > 0
+      ? { avgRoasPct: roiWeightedSum / roiSpendWeight, totalAdSpend: roiTotalSpend, sampleSize: roiSampleSize }
+      : null;
     const leadsByMonth: Record<string, { count: number; revenueAttributed: number }> = {};
     for (const entry of paidAdsEntries) {
       const key = `${entry.month.getFullYear()}-${String(entry.month.getMonth() + 1).padStart(2, "0")}`;
@@ -354,6 +381,7 @@ router.get(
       perService,
       reachTrend,
       leadsTrend,
+      marketingRoi,
     });
   })
 );

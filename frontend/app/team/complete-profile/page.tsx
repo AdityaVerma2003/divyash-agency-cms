@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { getAccessToken, fetchCurrentUser } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
 import BankDetailsFields from "@/components/BankDetailsFields";
-import { EMPTY_BANK_DETAILS, isBankDetailsFilled, parseBankDetails, serializeBankDetails, type BankDetails } from "@/lib/bankDetails";
+import { EMPTY_BANK_DETAILS, parseBankDetails, serializeBankDetails, type BankDetails } from "@/lib/bankDetails";
 
 const inputCls =
   "w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none focus:border-coral-500 transition-colors";
@@ -79,16 +79,15 @@ export default function CompleteProfilePage() {
       toastError("Photo required", "Please upload a profile photo — it appears on the public team page.");
       return;
     }
-    if (!isBankDetailsFilled(bankDetails)) {
-      toastError("Bank details required", "Bank details are needed to process your payouts.");
-      return;
-    }
     if (!userId) return;
     setSaving(true);
     try {
       await api.patch(`/users/${userId}`, {
         mobile: mobile.trim(),
         address: address.trim(),
+        // Optional at this stage — serializeBankDetails returns "" when
+        // nothing's filled in, so a team member can finish onboarding and
+        // add bank details later from their profile page instead.
         bankDetails: serializeBankDetails(bankDetails),
         ...(designation === "Influencer" && socialLinks.trim() && { socialLinks: socialLinks.trim() }),
       }, getAccessToken());
@@ -165,9 +164,9 @@ export default function CompleteProfilePage() {
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                Bank details <span className="text-xs font-normal normal-case">(required — for salary processing)</span>
+                Bank details <span className="text-xs font-normal normal-case">(optional — for salary processing, add now or later from your profile)</span>
               </label>
-              <BankDetailsFields value={bankDetails} onChange={setBankDetails} required />
+              <BankDetailsFields value={bankDetails} onChange={setBankDetails} />
             </div>
 
             {designation === "Influencer" && (

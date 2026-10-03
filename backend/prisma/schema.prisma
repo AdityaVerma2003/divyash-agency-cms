@@ -228,6 +228,13 @@ model User {
   taskAttachments  TaskAttachment[]
   createdEvents    CalendarEvent[]         @relation("EventCreator")
   eventAttendance  CalendarEventAttendee[]
+
+  createdSmmReportEntries                SmmReportEntry[]                @relation("SmmReportEntryCreator")
+  createdSeoReportEntries                SeoReportEntry[]                @relation("SeoReportEntryCreator")
+  createdPaidAdsReportEntries            PaidAdsReportEntry[]            @relation("PaidAdsReportEntryCreator")
+  createdGraphicDesignReportEntries      GraphicDesignReportEntry[]      @relation("GraphicDesignReportEntryCreator")
+  createdContentCreationReportEntries    ContentCreationReportEntry[]    @relation("ContentCreationReportEntryCreator")
+  createdWebsiteDevelopmentReportEntries WebsiteDevelopmentReportEntry[] @relation("WebsiteDevelopmentReportEntryCreator")
 }
 
 // A team member assigned to work on a client's account. Many-to-many —
@@ -470,6 +477,7 @@ model SmmReportEntry {
   // don't need a join; referential integrity still comes from clientServiceId.
   clientId    String
   createdById String?
+  createdBy   User?     @relation("SmmReportEntryCreator", fields: [createdById], references: [id])
   notes       String?   // internal only — never serialised to client endpoints
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -496,6 +504,7 @@ model SeoReportEntry {
 
   clientId    String
   createdById String?
+  createdBy   User?    @relation("SeoReportEntryCreator", fields: [createdById], references: [id])
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -533,6 +542,7 @@ model PaidAdsReportEntry {
 
   clientId    String
   createdById String?
+  createdBy   User?    @relation("PaidAdsReportEntryCreator", fields: [createdById], references: [id])
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -554,6 +564,7 @@ model GraphicDesignReportEntry {
 
   clientId    String
   createdById String?
+  createdBy   User?    @relation("GraphicDesignReportEntryCreator", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -573,6 +584,7 @@ model ContentCreationReportEntry {
 
   clientId    String
   createdById String?
+  createdBy   User?    @relation("ContentCreationReportEntryCreator", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -601,6 +613,7 @@ model WebsiteDevelopmentReportEntry {
 
   clientId    String
   createdById String?
+  createdBy   User?    @relation("WebsiteDevelopmentReportEntryCreator", fields: [createdById], references: [id])
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -698,6 +711,11 @@ model CalendarEvent {
   mode        EventMode @default(OFFLINE)
   location    String?   // offline events
   meetingUrl  String?   // online events
+  // Ad-hoc client contact for an online meeting — not tied to a registered
+  // Client row, since the person being met with may not have one (or the
+  // meeting is linked to a different client than the one paying the invoice).
+  // Used to send the "meeting scheduled" email; purely optional.
+  clientEmail String?
   colorTag    String?
   clientId    String?
   client      Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)

@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import PageLoader from "@/components/PageLoader";
 import { reportTypeForCategory, REPORT_TYPE_LABELS } from "@/lib/reportTypes";
+import { ENTRY_DATE_FIELD, formatEntrySummary, entryAuthorName } from "@/lib/reportEntrySummary";
 import type { Client, ClientService, ReportType } from "@/types";
 import SmmForm from "@/components/reporting/SmmForm";
 import SeoForm from "@/components/reporting/SeoForm";
@@ -20,24 +21,6 @@ const INPUT_CLS =
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
-
-const ENTRY_DATE_FIELD: Record<ReportType, string> = {
-  smm: "postedAt",
-  seo: "entryDate",
-  paidAds: "month",
-  graphicDesigning: "executionDate",
-  contentCreation: "executionDate",
-  websiteDevelopment: "createdAt",
-};
-
-const ENTRY_SUMMARY_FIELDS: Record<ReportType, string[]> = {
-  smm: ["postType", "platform", "marketingType"],
-  seo: ["backlinksCreated", "articleSubmissions", "trafficGain"],
-  paidAds: ["campaignName", "objective", "spend"],
-  graphicDesigning: ["designType", "itemCount"],
-  contentCreation: ["contentType"],
-  websiteDevelopment: ["websiteType", "hosting", "websiteLink"],
-};
 
 function EntryForm({ type, clientServiceId, onAdded }: { type: ReportType; clientServiceId: string; onAdded: () => void }) {
   switch (type) {
@@ -171,20 +154,21 @@ function ReportingContent() {
                       <tr>
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Date</th>
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Details</th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Entered by</th>
                         <th className="px-4 py-3" />
                       </tr>
                     </thead>
                     <tbody>
                       {entries.map((entry) => (
                         <tr key={entry.id as string} className="border-b border-[var(--border)] last:border-0">
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 whitespace-nowrap">
                             {formatDate(entry[ENTRY_DATE_FIELD[reportType]] as string)}
                           </td>
                           <td className="px-4 py-3 text-[var(--muted)]">
-                            {ENTRY_SUMMARY_FIELDS[reportType]
-                              .map((f) => entry[f])
-                              .filter((v) => v !== null && v !== undefined && v !== "")
-                              .join(" · ")}
+                            {formatEntrySummary(reportType, entry)}
+                          </td>
+                          <td className="px-4 py-3 text-[var(--ink)] whitespace-nowrap">
+                            {entryAuthorName(entry)}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <button

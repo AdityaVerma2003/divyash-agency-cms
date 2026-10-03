@@ -264,25 +264,28 @@ adminServiceReportsRouter.get(
     if (!clientServiceId) throw ApiError.badRequest("clientServiceId query param is required");
     const { reportType } = await loadClientServiceWithType(clientServiceId);
 
+    // Every branch includes the creator's name — the admin entries table
+    // shows "entered by" per row so a SUPER_ADMIN can see who logged what.
+    const createdBy = { select: { name: true } } as const;
     let entries: unknown[];
     switch (reportType) {
       case "smm":
-        entries = await prisma.smmReportEntry.findMany({ where: { clientServiceId }, orderBy: { postedAt: "desc" } });
+        entries = await prisma.smmReportEntry.findMany({ where: { clientServiceId }, orderBy: { postedAt: "desc" }, include: { createdBy } });
         break;
       case "seo":
-        entries = await prisma.seoReportEntry.findMany({ where: { clientServiceId }, orderBy: { entryDate: "desc" } });
+        entries = await prisma.seoReportEntry.findMany({ where: { clientServiceId }, orderBy: { entryDate: "desc" }, include: { createdBy } });
         break;
       case "paidAds":
-        entries = await prisma.paidAdsReportEntry.findMany({ where: { clientServiceId }, orderBy: { month: "desc" } });
+        entries = await prisma.paidAdsReportEntry.findMany({ where: { clientServiceId }, orderBy: { month: "desc" }, include: { createdBy } });
         break;
       case "graphicDesigning":
-        entries = await prisma.graphicDesignReportEntry.findMany({ where: { clientServiceId }, orderBy: { executionDate: "desc" } });
+        entries = await prisma.graphicDesignReportEntry.findMany({ where: { clientServiceId }, orderBy: { executionDate: "desc" }, include: { createdBy } });
         break;
       case "contentCreation":
-        entries = await prisma.contentCreationReportEntry.findMany({ where: { clientServiceId }, orderBy: { executionDate: "desc" } });
+        entries = await prisma.contentCreationReportEntry.findMany({ where: { clientServiceId }, orderBy: { executionDate: "desc" }, include: { createdBy } });
         break;
       case "websiteDevelopment":
-        entries = await prisma.websiteDevelopmentReportEntry.findMany({ where: { clientServiceId }, orderBy: { createdAt: "desc" } });
+        entries = await prisma.websiteDevelopmentReportEntry.findMany({ where: { clientServiceId }, orderBy: { createdAt: "desc" }, include: { createdBy } });
         break;
     }
 
