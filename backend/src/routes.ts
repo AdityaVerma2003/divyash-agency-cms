@@ -16,8 +16,12 @@ import billingRoutes from "./modules/billing.module";
 import reportsRoutes from "./modules/reports.module";
 import razorpayRoutes from "./modules/razorpay.module";
 import { publicBlogRouter, adminBlogRouter } from "./modules/blogPosts.module";
-import { adminReportsRouter, portalReportsRouter } from "./modules/clientReports.module";
+import { adminServiceReportsRouter, portalServiceReportsRouter } from "./modules/serviceReports.module";
 import { publicCaseStudiesRouter, adminCaseStudiesRouter } from "./modules/caseStudies.module";
+import tasksRoutes, { portalTasksRouter } from "./modules/tasks.module";
+import calendarEventsRoutes from "./modules/calendarEvents.module";
+import workspaceRoutes from "./modules/workspace.module";
+import { publicSiteSettingsRouter, adminSiteSettingsRouter } from "./modules/siteSettings.module";
 import { Router as ExpressRouter } from "express";
 import { asyncHandler } from "./utils/asyncHandler";
 import { prisma } from "./lib/prisma";
@@ -27,8 +31,8 @@ const router = Router();
 
 router.use("/auth", authRoutes);
 router.use("/clients", clientsRoutes);
-// Admin client reports nested under /clients/:clientId/reports
-router.use("/admin/clients/:clientId/reports", adminReportsRouter);
+router.use("/admin/service-reports", adminServiceReportsRouter);
+router.use("/portal/service-reports", portalServiceReportsRouter);
 router.use("/services", servicesRoutes);
 router.use("/client-services", clientServicesRoutes);
 router.use("/invoices", invoicesRoutes);
@@ -48,8 +52,14 @@ router.use("/admin/blog-posts", adminBlogRouter);
 router.use("/admin/case-studies", adminCaseStudiesRouter);
 router.use("/public/case-studies", publicCaseStudiesRouter);
 router.use("/public/clients", publicClientsRouter);
-router.use("/portal/reports", portalReportsRouter);
 router.use("/portal/team-activity", portalTeamActivityRouter);
+router.use("/tasks", tasksRoutes);
+router.use("/portal/tasks", portalTasksRouter);
+router.use("/calendar-events", calendarEventsRoutes);
+router.use("/workspace", workspaceRoutes);
+router.use("/public/site-settings", publicSiteSettingsRouter);
+// GET /admin/settings, PATCH /admin/settings/maintenance, /admin/settings/report-lock
+router.use("/admin/settings", adminSiteSettingsRouter);
 
 // Public team endpoint — alias so /api/public/team works alongside /api/users/public/team
 const publicTeamRouter = ExpressRouter();

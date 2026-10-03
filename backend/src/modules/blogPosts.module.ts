@@ -56,7 +56,7 @@ const createSchema = z.object({
   metaDescription: z.string().max(160).optional(),
   primaryKeyword: z.string().max(200).optional(),
   keywords: z.string().max(500).optional(),
-  faqSchema: z.string().optional(),
+  canonicalUrl: z.string().url().max(500).optional(),
 });
 
 const updateSchema = createSchema.partial().extend({
@@ -126,31 +126,12 @@ publicBlogRouter.get(
       publisher: {
         "@type": "Organization",
         name: "Divyash Digital",
-        logo: { "@type": "ImageObject", url: `${origin}/divyash-logo.png` },
+        logo: { "@type": "ImageObject", url: `${origin}/divyash-logo-everywhere.png` },
       },
       ...(post.coverImageUrl && { image: post.coverImageUrl }),
     };
 
     const structuredData: unknown[] = [articleSchema];
-
-    if (post.faqSchema) {
-      try {
-        const faqItems = JSON.parse(post.faqSchema);
-        if (Array.isArray(faqItems) && faqItems.length > 0) {
-          structuredData.push({
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            mainEntity: faqItems.map((item: { question: string; answer: string }) => ({
-              "@type": "Question",
-              name: item.question,
-              acceptedAnswer: { "@type": "Answer", text: item.answer },
-            })),
-          });
-        }
-      } catch {
-        // malformed faqSchema — skip silently
-      }
-    }
 
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=120");
     res.json({ ...post, structuredData });
@@ -161,7 +142,7 @@ publicBlogRouter.get(
 
 export const adminBlogRouter = Router();
 adminBlogRouter.use(authenticate);
-adminBlogRouter.use(authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER));
+adminBlogRouter.use(authorize(Role.SUPER_ADMIN));
 
 // GET /api/admin/blog-posts/:id — single post (any status, for editing)
 adminBlogRouter.get(
@@ -211,7 +192,7 @@ adminBlogRouter.post(
         metaDescription: data.metaDescription,
         primaryKeyword: data.primaryKeyword,
         keywords: data.keywords,
-        faqSchema: data.faqSchema,
+        canonicalUrl: data.canonicalUrl,
         status: BlogPostStatus.DRAFT,
         authorId: req.user!.userId,
       },
@@ -266,7 +247,7 @@ adminBlogRouter.patch(
         ...(data.metaDescription !== undefined && { metaDescription: data.metaDescription }),
         ...(data.primaryKeyword  !== undefined && { primaryKeyword: data.primaryKeyword }),
         ...(data.keywords        !== undefined && { keywords: data.keywords }),
-        ...(data.faqSchema       !== undefined && { faqSchema: data.faqSchema }),
+        ...(data.canonicalUrl    !== undefined && { canonicalUrl: data.canonicalUrl }),
         ...(data.status !== undefined && { status: data.status }),
         publishedAt,
       },
@@ -341,5 +322,22 @@ adminBlogRouter.post(
     });
 
     res.json({ coverImageUrl });
+  })
+);
+
+// POST /api/admin/blog-posts/content-image — upload an inline image used
+// inside the rich-text editor body (not tied to a specific post id, since
+// images can be inserted while composing a draft that hasn't been saved yet)
+adminBlogRouter.post(
+  "/content-image",
+  coverUpload.single("image"),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw ApiError.badRequest("No file uploaded");
+
+    const url = await uploadToCloudinary(req.file.buffer, {
+      folder: "divyash-agency/blog-content",
+    });
+
+    res.json({ url });
   })
 );

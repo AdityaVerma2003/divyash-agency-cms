@@ -1,0 +1,88 @@
+/* Embedded layout for the Simple Editor template.
+   The upstream template ships as a full-viewport standalone app (100vw/100vh,
+   fixed toolbar/search overlays anchored to the browser window). Here the
+   editor is one field inside the blog post form, so it's rebuilt as a bounded,
+   bordered box — matching the other form inputs — rather than taking over the
+   page. Colors come from .simple-editor-wrapper / --tt-* tokens (styles/_variables.scss),
+   which are themed to the app's own --surface/--border/--ink + coral brand scale. */
+
+.simple-editor-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+
+  --tt-toolbar-height: 44px;
+  --tt-theme-text: var(--ink);
+
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  color: var(--tt-theme-text);
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+
+  &:focus-within {
+    border-color: var(--tt-brand-color-500);
+  }
+}
+
+.simple-editor-wrapper * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tt-scrollbar-color) transparent;
+}
+
+.simple-editor-wrapper ::-webkit-scrollbar {
+  width: 0.25rem;
+}
+
+.simple-editor-wrapper ::-webkit-scrollbar-thumb {
+  background-color: var(--tt-scrollbar-color);
+  border-radius: 9999px;
+}
+
+.simple-editor-wrapper ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* The toolbar primitive defaults to `position: sticky; top: 0`, meant to pin
+   against a full-page scroll container. Embedded in a form, that sticks it to
+   the top of the whole page instead of the top of this box — pin it to the
+   box itself instead. */
+.simple-editor-wrapper .tiptap-toolbar[data-variant="fixed"] {
+  position: static;
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+
+.simple-editor-search-and-replace {
+  position: absolute;
+  top: calc(var(--tt-toolbar-height) + 0.5rem);
+  right: 0.5rem;
+  z-index: 5;
+  max-width: calc(100% - 1rem);
+}
+
+.simple-editor-content {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.simple-editor-content .tiptap.ProseMirror.simple-editor {
+  min-height: 260px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 2rem;
+}
+
+@media screen and (max-width: 480px) {
+  .simple-editor-content .tiptap.ProseMirror.simple-editor {
+    padding: 0.75rem 1rem 1.5rem;
+  }
+}

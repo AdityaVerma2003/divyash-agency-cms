@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import BlogPostForm from "@/components/BlogPostForm";
+import PageLoader from "@/components/PageLoader";
 import type { BlogPost } from "@/types";
 
 export default function EditBlogPostPage() {
@@ -21,6 +22,6 @@ export default function EditBlogPostPage() {
   }, [id]);
 
   if (error) return <p className="text-sm text-danger">{error}</p>;
-  if (!post) return <p className="text-sm text-[var(--muted)]">Loading…</p>;
+  if (!post) return <PageLoader fullScreen={false} />;
   return <BlogPostForm initialPost={post} />;
 }

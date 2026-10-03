@@ -26,6 +26,7 @@ export interface Client {
   gstin?: string | null;
   address?: string | null;
   agreementDetails?: string | null;
+  intro?: string | null;
   status: "ACTIVE" | "SUSPENDED" | "INACTIVE";
   suspensionReason?: string | null;
   suspensionNotes?: string | null;
@@ -36,23 +37,6 @@ export interface Client {
   assignments?: { id: string; user: { id: string; name: string; designation?: string | null } }[];
   _count?: { clientServices: number };
   clientServices?: (ClientService & { service: Service })[];
-}
-
-export interface UserSession {
-  id: string;
-  loginAt: string;
-  logoutAt: string | null;
-  durationMinutes: number | null;
-}
-
-export interface TeamMemberActivity {
-  member: { id: string; name: string; designation: string | null; photoUrl: string | null };
-  sessions: UserSession[];
-  totalActiveMinutes: number;
-}
-
-export interface TeamActivity {
-  members: TeamMemberActivity[];
 }
 
 export interface Service {
@@ -119,6 +103,42 @@ export interface AdminDashboardSummary {
     clientId: string;
     clientName: string;
   }[];
+  period: "this_month" | "last_month" | "this_quarter" | "this_year";
+  range: number;
+  kpis: {
+    revenue: KpiValue;
+    contractsSigned: KpiValue;
+    clientsAdded: KpiValue;
+    invoicesSent: KpiValue;
+  };
+  leadTrend: { month: string; leads: number; converted: number }[];
+  upcoming: {
+    events: {
+      id: string; title: string; startAt: string; endAt: string; mode: "ONLINE" | "OFFLINE"; allDay: boolean;
+      client: { id: string; companyName: string } | null;
+      attendees: { id: string; name: string; photoUrl?: string | null }[];
+    }[];
+    tasks: {
+      id: string; title: string; dueDate: string | null; priority: "HIGH" | "MEDIUM" | "LOW"; status: string;
+      client: { id: string; companyName: string } | null;
+      assignees: { id: string; name: string; photoUrl?: string | null }[];
+    }[];
+  };
+  recentActivity: {
+    id: string;
+    kind: "audit" | "comment";
+    actor: { id: string; name: string; photoUrl?: string | null } | null;
+    action: string;
+    subject: string;
+    body: string | null;
+    createdAt: string;
+  }[];
+}
+
+export interface KpiValue {
+  value: number;
+  prevValue: number;
+  deltaPct: number | null;
 }
 
 export interface Post {
@@ -164,22 +184,187 @@ export type PerServiceMetric =
       serviceName: string;
       category: "SMM";
       totalPosts: number;
-      totalReach: number;
-      totalEngagement: number;
+      organicCount: number;
+      paidCount: number;
+      totalFollowersGain: number;
+      totalProfileReach: number;
+      totalLeads: number;
+      reachByMonth: Record<string, number>;
     }
   | {
       clientServiceId: string;
       serviceName: string;
-      category: "GOOGLE_ADS" | "META_ADS";
-      totalSpend: number;
-      totalConversions: number;
-      avgROAS: number;
+      category: "GOOGLE_ADS" | "META_ADS" | "PERFORMANCE_MARKETING";
+      totalCampaignsCreated: number;
+      totalAdSpend: number;
+      totalReach: number;
+      totalConversion: number;
+      totalLeads: number;
+      totalProfileVisits: number;
+      roasPct: number;
+      targetedCountries: string[];
+      leadsByMonth: Record<string, number>;
+      spendByMonth: Record<string, number>;
+    }
+  | {
+      clientServiceId: string;
+      serviceName: string;
+      category: "SEO";
+      totalLinksSubmission: number;
+      countryTraffic: Record<string, number>;
+      trafficGain: number;
+      durationDays: number;
+      totalArticleCreated: number;
+      totalImageSubmission: number;
+      totalProfileCreated: number;
+      serpRanking: string | null;
+      keywordRanking: string | null;
+      trafficByMonth: Record<string, number>;
+    }
+  | {
+      clientServiceId: string;
+      serviceName: string;
+      category: "GRAPHIC_DESIGN" | "CONTENT";
+      totalItems: number;
+      latestSubmissionDate: string | null;
+      items: { type: string | null; executionDate: string; submissionDate: string | null }[];
+      itemsByMonth: Record<string, number>;
+    }
+  | {
+      clientServiceId: string;
+      serviceName: string;
+      category: "WEB_DESIGN";
+      websiteLink: string | null;
+      domainPlatform: string | null;
+      hosting: string | null;
+      seoEnhanced: boolean;
+      platformLanguage: string | null;
+      maintenanceAgreed: boolean;
+      executionDate: string | null;
+      submissionDate: string | null;
     }
   | {
       clientServiceId: string;
       serviceName: string;
       category: string;
     };
+
+// ── Per-service reporting (new system) ──────────────────────────────────
+
+export type ReportType =
+  | "smm"
+  | "seo"
+  | "paidAds"
+  | "graphicDesigning"
+  | "contentCreation"
+  | "websiteDevelopment";
+
+export interface SmmReportEntry {
+  id: string;
+  clientServiceId: string;
+  postType: "STATIC" | "CAROUSEL" | "REEL";
+  platform: "META" | "YOUTUBE" | "WHATSAPP" | "LINKEDIN" | "X" | "OTHER";
+  platformOther?: string | null;
+  postUrl?: string | null;
+  postedAt: string;
+  marketingType: "ORGANIC" | "PAID";
+  followersGain?: number | null;
+  profileReach?: number | null;
+  postLikes?: number | null;
+  profileVisits?: number | null;
+  isPaidAd: boolean;
+  paidAdSpend?: number | null;
+  paidFollowersGain?: number | null;
+  paidLikes?: number | null;
+  paidImpressions?: number | null;
+  paidLeadsGenerated?: number | null;
+  createdAt: string;
+}
+
+export interface SeoReportEntry {
+  id: string;
+  clientServiceId: string;
+  entryDate: string;
+  backlinksCreated: number;
+  directorySubmissions: number;
+  articleSubmissions: number;
+  imageSubmissions: number;
+  profileCreations: number;
+  approvedLinks: number;
+  keywordRanking?: string | null;
+  serpRanking?: string | null;
+  trafficGain: number;
+  countryTraffic?: { country: string; visits: number }[] | null;
+  createdAt: string;
+}
+
+export interface PaidAdsReportEntry {
+  id: string;
+  clientServiceId: string;
+  campaignName: string;
+  adGroup?: string | null;
+  adSet?: string | null;
+  objective: "LEAD_GEN" | "AWARENESS" | "SALES" | "TRAFFIC" | "PROMOTION";
+  setupDate: string;
+  dailyBudget: number;
+  month: string;
+  spend: number;
+  reach?: number | null;
+  impressions?: number | null;
+  clicks?: number | null;
+  conversions?: number | null;
+  leads?: number | null;
+  leadsConverted?: number | null;
+  profileVisits?: number | null;
+  addToCart?: number | null;
+  revenueGeneratedPct?: number | null;
+  cpl?: number | null;
+  cpc?: number | null;
+  cpv?: number | null;
+  targetedCountries?: string[] | null;
+  createdAt: string;
+}
+
+export interface GraphicDesignReportEntry {
+  id: string;
+  clientServiceId: string;
+  designType: "VIDEO_EDITING" | "BRANDING" | "SOCIAL_MEDIA_POST" | "AUDIO_BOOSTING" | "LONG_VIDEO_EDITING" | "THREE_D_ANIMATION" | "LOGO_DESIGN" | "OTHER";
+  designTypeOther?: string | null;
+  itemCount: number;
+  executionDate: string;
+  submissionDate?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface ContentCreationReportEntry {
+  id: string;
+  clientServiceId: string;
+  contentType: "CONTENT_SHOOT" | "COPYWRITING" | "SCRIPT_WRITING" | "OTHER";
+  contentTypeOther?: string | null;
+  executionDate: string;
+  submissionDate?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface WebsiteDevelopmentReportEntry {
+  id: string;
+  clientServiceId: string;
+  websiteType: "INFOGRAPHIC" | "BRAND" | "ECOMMERCE" | "CUSTOM_CODED" | "LANDING_PAGE_ONLY" | "OTHER";
+  websiteTypeOther?: string | null;
+  pageCount?: number | null;
+  platformLanguage?: string | null;
+  adminCredentialNote?: string | null;
+  seoEnhanced: boolean;
+  domainPlatform?: string | null;
+  hosting?: "DD_SHARED" | "CLIENT_OWN" | null;
+  websiteLink?: string | null;
+  maintenanceAgreed: boolean;
+  executionDate?: string | null;
+  submissionDate?: string | null;
+  createdAt: string;
+}
 
 export interface Notification {
   id: string;
@@ -255,7 +440,7 @@ export interface BlogPost {
   metaDescription?: string | null;
   primaryKeyword?: string | null;
   keywords?: string | null;
-  faqSchema?: string | null;
+  canonicalUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }

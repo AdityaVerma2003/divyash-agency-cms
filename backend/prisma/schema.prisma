@@ -96,6 +96,101 @@ enum OnboardingStatus {
   COMPLETE
 }
 
+// ── Service reporting (per-category entry types) ───────────────────────
+
+enum SmmPostType {
+  STATIC
+  CAROUSEL
+  REEL
+}
+
+enum SmmPlatform {
+  META
+  YOUTUBE
+  WHATSAPP
+  LINKEDIN
+  X
+  OTHER
+}
+
+enum SmmMarketingType {
+  ORGANIC
+  PAID
+}
+
+enum PaidAdsObjective {
+  LEAD_GEN
+  AWARENESS
+  SALES
+  TRAFFIC
+  PROMOTION
+}
+
+enum GraphicDesignType {
+  VIDEO_EDITING
+  BRANDING
+  SOCIAL_MEDIA_POST
+  AUDIO_BOOSTING
+  LONG_VIDEO_EDITING
+  THREE_D_ANIMATION
+  LOGO_DESIGN
+  OTHER
+}
+
+enum ContentCreationType {
+  CONTENT_SHOOT
+  COPYWRITING
+  SCRIPT_WRITING
+  OTHER
+}
+
+enum WebsiteType {
+  INFOGRAPHIC
+  BRAND
+  ECOMMERCE
+  CUSTOM_CODED
+  LANDING_PAGE_ONLY
+  OTHER
+}
+
+enum WebsiteHosting {
+  DD_SHARED
+  CLIENT_OWN
+}
+
+// Which report types a team member is allowed to file. Authoritative — the
+// designation string is only used to pre-tick these at invite time.
+enum ReportType {
+  SMM
+  SEO
+  PAID_ADS
+  DESIGN
+  CONTENT
+  WEB_DEV
+}
+
+// ── Tasks ───────────────────────────────────────────────────────────────
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  COMPLETE
+}
+
+enum TaskPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// ── Calendar ────────────────────────────────────────────────────────────
+
+enum EventMode {
+  ONLINE
+  OFFLINE
+}
+
 // ── Core identity ───────────────────────────────────────────────────────
 
 model User {
@@ -115,6 +210,9 @@ model User {
   designation          String?
   bankDetails          String?
   socialLinks          String?
+  // Report types this member may file. Defaults from designation at invite
+  // time, then editable by a SUPER_ADMIN only.
+  reportTypes          ReportType[]     @default([])
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
@@ -123,6 +221,13 @@ model User {
   notifications  Notification[]
   blogPosts      BlogPost[]
   sessions       UserSession[]
+
+  createdTasks     Task[]                  @relation("TaskCreator")
+  taskAssignments  TaskAssignee[]
+  taskComments     TaskComment[]
+  taskAttachments  TaskAttachment[]
+  createdEvents    CalendarEvent[]         @relation("EventCreator")
+  eventAttendance  CalendarEventAttendee[]
 }
 
 // A team member assigned to work on a client's account. Many-to-many —
@@ -169,6 +274,8 @@ model Client {
   suspendedBy       String?
   onboardedAt       DateTime     @default(now())
   agreementDetails  String?
+  // Short public-facing blurb shown on the landing/work page when showOnPublicSite is true
+  intro             String?
   // Whether this client appears in the public "Our Work" portfolio section
   showOnPublicSite  Boolean      @default(false)
   createdAt         DateTime     @default(now())
@@ -182,6 +289,8 @@ model Client {
   clientReports  ClientReport[]
   caseStudies    CaseStudy[]
   assignments    ClientAssignment[]
+  tasks          Task[]
+  calendarEvents CalendarEvent[]
 }
 
 // ── Services & subscriptions ────────────────────────────────────────────
@@ -219,6 +328,13 @@ model ClientService {
   invoiceItems InvoiceItem[]
   posts        Post[]
   campaigns    Campaign[]
+
+  smmReportEntries                SmmReportEntry[]
+  seoReportEntries                SeoReportEntry[]
+  paidAdsReportEntries             PaidAdsReportEntry[]
+  graphicDesignReportEntries       GraphicDesignReportEntry[]
+  contentCreationReportEntries     ContentCreationReportEntry[]
+  websiteDevelopmentReportEntries  WebsiteDevelopmentReportEntry[]
 }
 
 // ── Billing ──────────────────────────────────────────────────────────────
@@ -325,6 +441,302 @@ model Report {
   generatedAt DateTime @default(now())
 }
 
+// ── Per-service reporting (replaces Post/Campaign/Lead as the active
+// data-entry path; those tables are kept, unused, for historical PDF data) ──
+
+model SmmReportEntry {
+  id              String           @id @default(uuid())
+  clientServiceId String
+  clientService   ClientService    @relation(fields: [clientServiceId], references: [id], onDelete: Cascade)
+  postType        SmmPostType
+  platform        SmmPlatform
+  platformOther   String?
+  postUrl         String?
+  postedAt        DateTime
+  marketingType   SmmMarketingType
+  followersGain   Int?
+  profileReach    Int?
+  postLikes       Int?
+  profileVisits   Int?
+
+  isPaidAd            Boolean  @default(false)
+  paidAdSpend         Decimal? @db.Decimal(12, 2)
+  paidFollowersGain   Int?
+  paidLikes           Int?
+  paidImpressions     Int?
+  paidLeadsGenerated  Int?
+
+  // Provenance + scoping. clientId is denormalised so team-scoped queries
+  // don't need a join; referential integrity still comes from clientServiceId.
+  clientId    String
+  createdById String?
+  notes       String?   // internal only — never serialised to client endpoints
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([clientServiceId])
+  @@index([clientId])
+}
+
+model SeoReportEntry {
+  id                   String        @id @default(uuid())
+  clientServiceId      String
+  clientService        ClientService @relation(fields: [clientServiceId], references: [id], onDelete: Cascade)
+  entryDate            DateTime
+  backlinksCreated     Int           @default(0)
+  directorySubmissions Int           @default(0)
+  articleSubmissions   Int           @default(0)
+  imageSubmissions     Int           @default(0)
+  profileCreations     Int           @default(0)
+  approvedLinks        Int           @default(0)
+  keywordRanking       String?
+  serpRanking          String?
+  trafficGain          Int           @default(0)
+  countryTraffic       Json?
+
+  clientId    String
+  createdById String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientServiceId])
+  @@index([clientId])
+}
+
+model PaidAdsReportEntry {
+  id              String           @id @default(uuid())
+  clientServiceId String
+  clientService   ClientService    @relation(fields: [clientServiceId], references: [id], onDelete: Cascade)
+  campaignName    String
+  adGroup         String?
+  adSet           String?
+  objective       PaidAdsObjective
+  setupDate       DateTime
+  dailyBudget     Decimal          @db.Decimal(12, 2)
+  month           DateTime
+  spend           Decimal          @default(0) @db.Decimal(12, 2)
+
+  reach           Int?
+  impressions     Int?
+  clicks          Int?
+  conversions     Int?
+  leads           Int?
+  leadsConverted  Int?
+  profileVisits   Int?
+  addToCart       Int?
+  revenueGeneratedPct Decimal? @db.Decimal(5, 2)
+  cpl             Decimal? @db.Decimal(12, 2)
+  cpc             Decimal? @db.Decimal(12, 2)
+  cpv             Decimal? @db.Decimal(12, 2)
+  targetedCountries Json?
+
+  clientId    String
+  createdById String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientServiceId])
+  @@index([clientId])
+}
+
+model GraphicDesignReportEntry {
+  id              String            @id @default(uuid())
+  clientServiceId String
+  clientService   ClientService     @relation(fields: [clientServiceId], references: [id], onDelete: Cascade)
+  designType      GraphicDesignType
+  designTypeOther String?
+  itemCount       Int               @default(1)
+  executionDate   DateTime
+  submissionDate  DateTime?
+  notes           String?
+
+  clientId    String
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientServiceId])
+  @@index([clientId])
+}
+
+model ContentCreationReportEntry {
+  id                String              @id @default(uuid())
+  clientServiceId   String
+  clientService     ClientService       @relation(fields: [clientServiceId], references: [id], onDelete: Cascade)
+  contentType       ContentCreationType
+  contentTypeOther  String?
+  executionDate     DateTime
+  submissionDate    DateTime?
+  notes             String?
+
+  clientId    String
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientServiceId])
+  @@index([clientId])
+}
+
+model WebsiteDevelopmentReportEntry {
+  id                  String         @id @default(uuid())
+  clientServiceId     String
+  clientService       ClientService  @relation(fields: [clientServiceId], references: [id], onDelete: Cascade)
+  websiteType         WebsiteType
+  websiteTypeOther    String?
+  pageCount           Int?
+  platformLanguage    String?
+  // AES-256-GCM ciphertext ("iv:tag:ciphertext"). Never selected by list or
+  // client-facing endpoints; readable only via the audited reveal endpoint.
+  adminCredentialEnc  String?
+  seoEnhanced         Boolean        @default(false)
+  domainPlatform      String?
+  hosting             WebsiteHosting?
+  websiteLink         String?
+  maintenanceAgreed   Boolean        @default(false)
+  executionDate       DateTime?
+  submissionDate      DateTime?
+
+  clientId    String
+  createdById String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientServiceId])
+  @@index([clientId])
+}
+
+// Freezes a reporting month so team members can no longer edit entries a
+// client has already seen. A null clientId locks that month for everyone.
+model ReportMonthLock {
+  id         String   @id @default(uuid())
+  clientId   String?
+  month      DateTime
+  lockedAt   DateTime @default(now())
+  lockedById String
+
+  @@unique([clientId, month])
+}
+
+// ── Tasks ───────────────────────────────────────────────────────────────
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  position    Int          @default(0)
+  // Set ⇒ this task is visible read-only in that client's portal.
+  // Null ⇒ internal only.
+  clientId    String?
+  client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdById String
+  createdBy   User         @relation("TaskCreator", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  assignees   TaskAssignee[]
+  comments    TaskComment[]
+  attachments TaskAttachment[]
+
+  @@index([status])
+  @@index([clientId])
+}
+
+model TaskAssignee {
+  id         String   @id @default(uuid())
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model TaskAttachment {
+  id           String   @id @default(uuid())
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileUrl      String
+  fileName     String
+  fileSize     Int?
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([taskId])
+}
+
+// ── Calendar ────────────────────────────────────────────────────────────
+
+model CalendarEvent {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  startAt     DateTime
+  endAt       DateTime
+  allDay      Boolean   @default(false)
+  mode        EventMode @default(OFFLINE)
+  location    String?   // offline events
+  meetingUrl  String?   // online events
+  colorTag    String?
+  clientId    String?
+  client      Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdById String
+  createdBy   User      @relation("EventCreator", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  attendees CalendarEventAttendee[]
+
+  @@index([startAt])
+  @@index([clientId])
+}
+
+model CalendarEventAttendee {
+  id      String        @id @default(uuid())
+  eventId String
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+// ── Site-wide settings (single row) ─────────────────────────────────────
+
+model SiteSetting {
+  id                   String    @id @default("singleton")
+  maintenanceEnabled   Boolean   @default(false)
+  maintenanceMessage   String?
+  maintenanceStartedAt DateTime?
+  maintenanceEndsAt    DateTime?
+  // Day of the following month after which a reporting month freezes
+  reportLockDayOfMonth Int       @default(5)
+  updatedById          String?
+  updatedAt            DateTime  @updatedAt
+}
+
 // ── Weekly client reporting ──────────────────────────────────────────────
 
 model ClientReport {
@@ -410,7 +822,7 @@ model BlogPost {
   metaDescription String?
   primaryKeyword  String?
   keywords        String?
-  faqSchema       String?
+  canonicalUrl    String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }

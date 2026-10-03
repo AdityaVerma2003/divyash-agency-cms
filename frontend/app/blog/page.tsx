@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import PageLoader from "@/components/PageLoader";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 const LIMIT = 9;
@@ -166,19 +167,7 @@ export default function BlogPage() {
 
         {/* Posts */}
         {loading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-                <div className="aspect-[16/9] bg-[var(--surface-2)]" />
-                <div className="p-5 space-y-2">
-                  <div className="h-3 rounded bg-[var(--border)] w-1/3" />
-                  <div className="h-4 rounded bg-[var(--border)] w-3/4" />
-                  <div className="h-3 rounded bg-[var(--border)]" />
-                  <div className="h-3 rounded bg-[var(--border)] w-5/6" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <PageLoader fullScreen={false} />
         ) : !data || data.posts.length === 0 ? (
           <EmptyState />
         ) : (

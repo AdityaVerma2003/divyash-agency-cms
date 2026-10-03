@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
+import PageLoader from "@/components/PageLoader";
 import type { Invoice } from "@/types";
 
 type PaymentMethod = "RAZORPAY" | "BANK_TRANSFER" | "CASH" | "OTHER";
@@ -234,7 +235,7 @@ export default function InvoiceDetailPage() {
     loadInvoice();
   }, [loadInvoice]);
 
-  if (loading) return <p className="text-sm text-[var(--muted)]">Loading…</p>;
+  if (loading) return <PageLoader fullScreen={false} />;
   if (fetchError) return <p className="text-sm text-danger">{fetchError}</p>;
   if (!invoice) return null;
 

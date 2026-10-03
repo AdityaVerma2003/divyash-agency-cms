@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
+import PageLoader from "@/components/PageLoader";
 import type { Service, ClientService } from "@/types";
 
 type ServiceCategory =
@@ -243,9 +244,7 @@ export default function AdminServicesPage() {
 
       {/* Table */}
       {!services ? (
-        <div className="space-y-3 animate-pulse">
-          {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-[var(--border)] opacity-40" />)}
-        </div>
+        <PageLoader fullScreen={false} />
       ) : services.length === 0 ? (
         <div className="card py-16 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface-2)] text-2xl">🎯</div>

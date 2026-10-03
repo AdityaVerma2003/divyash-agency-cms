@@ -19,6 +19,7 @@ const clientInputSchema = z.object({
   phone: z.string().optional(),
   gstin: z.string().optional(),
   address: z.string().optional(),
+  intro: z.string().max(280).optional(),
   portalPassword: z.string().min(8).optional(), // if set, also creates a portal User account
   showOnPublicSite: z.boolean().optional(),
   // Team member(s) to assign on creation — mandatory, same as inviting a new
@@ -34,9 +35,13 @@ const clientAssignmentsInclude = {
   },
 } as const;
 
-// GET /api/clients — admin/account manager: all clients. Client role: just their own.
+// GET /api/clients — SUPER_ADMIN: all clients (full row — contact details,
+// GSTIN, agreement). CLIENT: just their own. Team members must not reach
+// this at all — they read client info via the ClientLite projection at
+// /workspace/clients instead.
 router.get(
   "/",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   asyncHandler(async (req, res) => {
     if (req.user!.role === Role.CLIENT) {
       const own = await prisma.client.findUnique({
@@ -57,9 +62,10 @@ router.get(
   })
 );
 
-// GET /api/clients/:clientId
+// GET /api/clients/:clientId — same SUPER_ADMIN / own-CLIENT restriction as above
 router.get(
   "/:clientId",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   scopeToOwnClient,
   asyncHandler(async (req, res) => {
     const client = await prisma.client.findUnique({
@@ -86,7 +92,7 @@ async function assertValidTeamMembers(userIds: string[] | undefined) {
 // POST /api/clients — admin only
 router.post(
   "/",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const { portalPassword, assignedUserIds, ...clientData } = clientInputSchema.parse(req.body);
     await assertValidTeamMembers(assignedUserIds);
@@ -158,7 +164,7 @@ router.post(
 // PATCH /api/clients/:clientId — admin only
 router.patch(
   "/:clientId",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     // Team assignment edits go through PATCH /:clientId/team instead — kept
     // separate so this endpoint can't accidentally wipe existing assignments.
@@ -178,7 +184,7 @@ router.patch(
 // so it can't accidentally unassign a team member from a different client.
 router.patch(
   "/:clientId/team",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const { userIds } = z
       .object({ userIds: z.array(z.string().uuid()).min(1, "Assign at least one team member") })
@@ -209,7 +215,7 @@ router.patch(
 // Suspend / reactivate / deactivate a client account.
 router.patch(
   "/:clientId/status",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const { status, reason, notes } = z
       .object({
@@ -276,7 +282,7 @@ router.patch(
 // PATCH /api/clients/:clientId/agreement — update plain-text agreement details
 router.patch(
   "/:clientId/agreement",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const { agreementDetails } = z
       .object({ agreementDetails: z.string().max(1000).optional() })
@@ -383,10 +389,12 @@ async function getTeamActivity(clientId: string) {
 }
 
 // GET /api/clients/:clientId/team-activity — the assigned team member's portal
-// session history (in-time/out-time + active duration). Admin/account manager
-// can view any client's; a CLIENT is restricted to their own via scopeToOwnClient.
+// session history (in-time/out-time + active duration). SUPER_ADMIN or the
+// owning CLIENT only — an ACCOUNT_MANAGER has no need to see login activity
+// for clients (or teammates) outside their own assignments.
 router.get(
   "/:clientId/team-activity",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   scopeToOwnClient,
   asyncHandler(async (req, res) => {
     res.json(await getTeamActivity(req.params.clientId));
@@ -431,6 +439,7 @@ publicClientsRouter.get(
       clients.map((c) => ({
         id: c.id,
         companyName: c.companyName,
+        intro: c.intro,
         caseStudy: c.caseStudies[0]
           ? { id: c.caseStudies[0].id, title: c.caseStudies[0].title, pdfUrl: c.caseStudies[0].pdfUrl }
           : null,

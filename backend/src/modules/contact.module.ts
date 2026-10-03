@@ -45,7 +45,7 @@ router.post(
 router.get(
   "/",
   authenticate,
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const page = Math.max(Number(req.query.page) || 1, 1);
@@ -65,7 +65,7 @@ router.get(
 router.patch(
   "/:id/read",
   authenticate,
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const contact = await prisma.contactRequest.findUnique({ where: { id: req.params.id } });
     if (!contact) throw ApiError.notFound("Contact request not found");

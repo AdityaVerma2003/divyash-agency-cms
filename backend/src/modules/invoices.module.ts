@@ -36,9 +36,12 @@ const recordPaymentSchema = z.object({
   gatewayPaymentId: z.string().optional(),
 });
 
-// GET /api/invoices?clientId=... — admins see all/filtered, clients see only their own
+// GET /api/invoices?clientId=... — SUPER_ADMIN sees all/filtered, CLIENT sees
+// only their own. Team members must never reach billing data (per the PDF's
+// explicit lockdown list), so ACCOUNT_MANAGER is excluded here entirely.
 router.get(
   "/",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   scopeToOwnClient,
   asyncHandler(async (req, res) => {
     const clientId =
@@ -56,6 +59,7 @@ router.get(
 // GET /api/invoices/:id
 router.get(
   "/:id",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   asyncHandler(async (req, res) => {
     const invoice = await prisma.invoice.findUnique({
       where: { id: req.params.id },
@@ -73,6 +77,7 @@ router.get(
 // GET /api/invoices/:id/pdf — download invoice as PDF (admin or owning client)
 router.get(
   "/:id/pdf",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   asyncHandler(async (req, res) => {
     const invoice = await prisma.invoice.findUnique({
       where: { id: req.params.id },
@@ -287,7 +292,7 @@ router.get(
 // (auto-generation from active ClientService rows lands in the billing-core phase)
 router.post(
   "/",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const data = invoiceInputSchema.parse(req.body);
     const subtotal = data.items.reduce((sum, item) => sum + item.amount, 0);
@@ -347,7 +352,7 @@ router.post(
 // POST /api/invoices/:id/payments — record a payment against an invoice
 router.post(
   "/:id/payments",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const data = recordPaymentSchema.parse(req.body);
     const invoice = await prisma.invoice.findUnique({

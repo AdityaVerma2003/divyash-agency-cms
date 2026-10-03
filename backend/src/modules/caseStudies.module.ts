@@ -54,7 +54,7 @@ publicCaseStudiesRouter.get(
 
 export const adminCaseStudiesRouter = Router();
 adminCaseStudiesRouter.use(authenticate);
-adminCaseStudiesRouter.use(authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER));
+adminCaseStudiesRouter.use(authorize(Role.SUPER_ADMIN));
 
 // GET /api/admin/case-studies
 adminCaseStudiesRouter.get(

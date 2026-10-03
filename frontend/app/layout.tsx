@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Sora, Lavishly_Yours } from "next/font/google";
-import "./globals.css";
+import { Plus_Jakarta_Sans, Sora, Lavishly_Yours, Inter } from "next/font/google";
+import "./globals.scss";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-jakarta",
+  display: "swap",
+});
+
+// Portal-only typeface (admin / workspace / client); the marketing site keeps Jakarta + Sora
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -46,7 +54,7 @@ const themeScript = `(function(){
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${sora.variable} ${lavishlyYours.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${jakarta.variable} ${sora.variable} ${lavishlyYours.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
         {/* Anti-flash theme init — runs before first paint */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />

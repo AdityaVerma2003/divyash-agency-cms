@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import PageLoader from "@/components/PageLoader";
 
 interface TocEntry {
   id: string;
@@ -36,6 +37,7 @@ interface BlogPost {
   publishedAt?: string | null;
   metaTitle?: string | null;
   metaDescription?: string | null;
+  canonicalUrl?: string | null;
   author?: { id: string; name: string };
 }
 
@@ -106,6 +108,14 @@ export default function BlogPostPage() {
       document.head.appendChild(meta);
     }
     meta.content = pageDesc;
+
+    let canonical = document.querySelector<HTMLLinkElement>("link[rel='canonical']");
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.rel = "canonical";
+      document.head.appendChild(canonical);
+    }
+    canonical.href = post.canonicalUrl || `${window.location.origin}/blog/${post.slug}`;
   }, [post]);
 
   if (notFound) {
@@ -164,16 +174,7 @@ export default function BlogPostPage() {
         </Link>
 
         {!post ? (
-          /* Loading skeleton */
-          <div className="mx-auto max-w-3xl animate-pulse space-y-4">
-            <div className="h-6 rounded bg-[var(--border)] w-1/4" />
-            <div className="h-8 rounded bg-[var(--border)] w-3/4" />
-            <div className="h-4 rounded bg-[var(--border)] w-1/2" />
-            <div className="aspect-[16/9] rounded-2xl bg-[var(--surface-2)]" />
-            <div className="space-y-2 pt-4">
-              {[1,2,3,4,5].map((i) => <div key={i} className="h-3 rounded bg-[var(--border)]" />)}
-            </div>
-          </div>
+          <PageLoader fullScreen={false} />
         ) : (
           <article>
             <div className="mx-auto max-w-3xl">

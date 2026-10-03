@@ -19,6 +19,7 @@ import {
 } from "framer-motion";
 import { LayeredStack } from "@/components/LayeredStack";
 import { ScrollSplitCard, type ScrollSplitCardItem } from "@/components/ScrollSplitCard";
+import PageLoader from "@/components/PageLoader";
 import {
   CLIENT_LOGOS_ROW_1,
   CLIENT_LOGOS_ROW_2,
@@ -597,10 +598,10 @@ function ServicesSection() {
 const STATS_BANNER_GRADIENT = "linear-gradient(120deg, #6366F1 0%, #5B7CF7 35%, #2DBFA0 70%, #F87DA3 100%)";
 
 const STATS_DATA = [
-  { target: 180, suffix: "+", icon: <DoodleBarChart size={30} />, bgColor: "#6366F1", description: "Projects delivered — across 6 service areas" },
-  { target: 50, suffix: "%", icon: <DoodleRocket size={30} />, bgColor: "#5B7CF7", description: "Average growth rate — across active clients" },
-  { target: 100, suffix: "+", icon: <DoodleTarget size={30} />, bgColor: "#2DBFA0", description: "Design projects — logos, creatives, UI/UX" },
-  { target: 6, suffix: "", icon: <DoodleMagnifier size={30} />, bgColor: "#F87DA3", description: "Core services — under one roof" },
+  { target: 180, suffix: "+", icon: <DoodleBarChart  size={60} />, bgColor: "#6366F1", description: "Projects delivered — across 6 service areas" },
+  { target: 50, suffix: "%", icon: <DoodleRocket size={60} />, bgColor: "#5B7CF7", description: "Average growth rate — across active clients" },
+  { target: 100, suffix: "+", icon: <DoodleTarget size={60} />, bgColor: "#2DBFA0", description: "Design projects — logos, creatives, UI/UX" },
+  { target: 6, suffix: "+", icon: <DoodleMagnifier size={60} />, bgColor: "#F87DA3", description: "Core services — under one roof" },
 ];
 
 function StatsSection() {
@@ -627,7 +628,7 @@ function StatsSection() {
     }));
 
   const endingText = (
-    <p className="font-display text-2xl font-bold text-white sm:text-3xl">
+    <p className="font-display text-4xl font-bold text-white sm:text-3xl">
       Every number, backed by real work.
     </p>
   );
@@ -664,7 +665,6 @@ function WhyCard({ w, index, delay }: { w: typeof WHY[0]; index: number; delay: 
           className="pointer-events-none absolute left-full top-8 z-10 hidden -translate-x-1/2 text-[var(--muted)] opacity-25 transition-opacity duration-500 group-hover:opacity-50 md:block"
           aria-hidden
         >
-          <DoodleConnector down={index % 2 === 1} />
         </div>
       )}
 
@@ -752,7 +752,7 @@ function WhySection() {
 /* Hand-drawn connector between cards — curves up or down for a sketched feel.
    Sized to actually fit inside the grid gutter it sits in (20–40px across the
    sections that use it); the old 110px version spanned way past the gap and
-   drew on top of the next card's icon instead of sitting between the two. */
+   drew on top of the next card's icon instead of sitting between the two. 
 function DoodleConnector({ down = false }: { down?: boolean }) {
   return (
     <svg width="56" height="22" viewBox="0 0 56 22" fill="none" aria-hidden>
@@ -773,6 +773,7 @@ function DoodleConnector({ down = false }: { down?: boolean }) {
     </svg>
   );
 }
+  */
 
 const STEP_ICONS = [DoodleMagnifier, DoodleTarget, DoodleRocket, DoodleChart];
 
@@ -1070,8 +1071,8 @@ function TrustedBySection() {
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[var(--page-bg)] to-transparent md:w-32" />
 
         <div className="space-y-6 md:space-y-8">
-          <LogoMarquee logos={CLIENT_LOGOS_ROW_1} baseVelocity={11} />
-          <LogoMarquee logos={CLIENT_LOGOS_ROW_2} baseVelocity={8} reverse />
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_1} baseVelocity={3} />
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_2} baseVelocity={3} reverse />
         </div>
       </div>
     </section>
@@ -1100,7 +1101,7 @@ function WorkCard({ item, index, isLast, delay }: { item: WorkItem; index: numbe
           className="pointer-events-none absolute left-full top-6 z-10 hidden -translate-x-1/2 text-[var(--muted)] opacity-25 transition-opacity duration-500 group-hover:opacity-50 lg:block"
           aria-hidden
         >
-          <DoodleConnector down={index % 2 === 1} />
+        
         </div>
       )}
 
@@ -1263,18 +1264,7 @@ function BlogSection() {
 
         {/* Posts grid */}
         {!loaded ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-                <div className="aspect-[16/9] bg-[var(--surface-2)]" />
-                <div className="p-5 space-y-2">
-                  <div className="h-3 rounded bg-[var(--border)] w-1/3" />
-                  <div className="h-4 rounded bg-[var(--border)] w-3/4" />
-                  <div className="h-3 rounded bg-[var(--border)]" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <PageLoader fullScreen={false} />
         ) : filtered.length === 0 ? (
           <div className={`rounded-2xl border border-dashed border-[var(--border)] py-16 text-center transition-all duration-700 delay-200 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
             {allPosts.length === 0 ? (
@@ -1365,6 +1355,21 @@ function CtaSection() {
 
 /* ── Page ────────────────────────────────────────────────────────────────────── */
 export default function HomePage() {
+  // Brief skeleton gate on first mount: the reveal-on-scroll animations below
+  // (useReveal's IntersectionObservers) measure layout as soon as they attach,
+  // so mounting the whole animated page in one go can catch them mid-paint —
+  // this gives the browser a beat to lay everything out first, then the
+  // animations trigger cleanly once real content appears.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!ready) {
+    return <PageLoader label="Loading" />;
+  }
+
   return (
     <div className="min-h-screen bg-[var(--page-bg)] text-[var(--ink)]">
       <Nav />

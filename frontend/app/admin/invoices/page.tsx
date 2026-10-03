@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
+import PageLoader from "@/components/PageLoader";
 import type { Invoice } from "@/types";
 
 type StatusFilter =
@@ -148,9 +149,7 @@ function InvoicesInner() {
 
       {/* Table */}
       {!invoices ? (
-        <div className="space-y-3 animate-pulse">
-          {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-[var(--border)] opacity-40" />)}
-        </div>
+        <PageLoader fullScreen={false} />
       ) : invoices.length === 0 ? (
         <div className="card py-16 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--muted)]">
@@ -264,11 +263,7 @@ function InvoicesInner() {
 
 export default function AdminInvoicesPage() {
   return (
-    <Suspense fallback={
-      <div className="space-y-3 animate-pulse">
-        {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-[var(--border)] opacity-40" />)}
-      </div>
-    }>
+    <Suspense fallback={<PageLoader fullScreen={false} />}>
       <InvoicesInner />
     </Suspense>
   );

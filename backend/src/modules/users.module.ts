@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import multer from "multer";
-import { OnboardingStatus, Role } from "@prisma/client";
+import { OnboardingStatus, ReportType as ReportTypeEnum, Role } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/apiError";
@@ -11,6 +11,7 @@ import { authenticate, authorize } from "../middleware/auth.middleware";
 import { sendEmail } from "../lib/email";
 import { logAudit } from "../lib/audit";
 import { uploadToCloudinary, deleteFromCloudinary } from "../lib/cloudinary";
+import { defaultReportTypesForDesignation } from "../lib/reportTypes";
 
 const router = Router();
 
@@ -56,8 +57,9 @@ router.use(authenticate);
 // GET /api/users — list all non-client team members (admin only)
 router.get(
   "/",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
-  asyncHandler(async (_req, res) => {
+  authorize(Role.SUPER_ADMIN),
+  asyncHandler(async (req, res) => {
+    const isSuperAdmin = req.user!.role === Role.SUPER_ADMIN;
     const users = await prisma.user.findMany({
       where: { role: { not: Role.CLIENT } },
       select: {
@@ -69,7 +71,11 @@ router.get(
         photoUrl: true,
         mobile: true,
         designation: true,
+        reportTypes: true,
         createdAt: true,
+        // Only Super Admins can see bank details, per-row (see users.module.ts PATCH handler's
+        // matching isSelf/isSuperAdmin write guard) — Account Managers never get this field at all.
+        ...(isSuperAdmin ? { bankDetails: true } : {}),
         clientAssignments: { select: { client: { select: { id: true, companyName: true } } } },
       },
       orderBy: { createdAt: "asc" },
@@ -88,7 +94,7 @@ router.post(
   "/",
   authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
-    const { name, email, role, designation, clientIds } = z
+    const { name, email, role, designation, clientIds, reportTypes } = z
       .object({
         name: z.string().min(1),
         email: z.string().email(),
@@ -96,8 +102,12 @@ router.post(
         designation: z.string().min(1).max(60).optional(),
         // Clients this teammate will work on — mandatory, at least one
         clientIds: z.array(z.string().uuid()).min(1, "Assign at least one client"),
+        // Which report types they may file. Omitted ⇒ defaulted from designation.
+        reportTypes: z.array(z.nativeEnum(ReportTypeEnum)).optional(),
       })
       .parse(req.body);
+
+    const resolvedReportTypes = reportTypes ?? defaultReportTypesForDesignation(designation);
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw ApiError.conflict("A user with this email already exists");
@@ -119,9 +129,10 @@ router.post(
           passwordHash: randomPasswordHash,
           role,
           designation,
+          reportTypes: resolvedReportTypes,
           onboardingStatus: OnboardingStatus.INVITED,
         },
-        select: { id: true, name: true, email: true, role: true, designation: true, onboardingStatus: true, createdAt: true },
+        select: { id: true, name: true, email: true, role: true, designation: true, reportTypes: true, onboardingStatus: true, createdAt: true },
       });
       await tx.user.update({
         where: { id: created.id },
@@ -149,7 +160,7 @@ router.post(
       "You've been invited to Divyash Digital",
       `
       <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
-        <img src="${origin}/divyash-logo.png" alt="Divyash Digital" style="height:56px;margin-bottom:24px" />
+        <img src="${origin}/divyash-logo-everywhere.png" alt="Divyash Digital" style="height:56px;margin-bottom:24px" />
         <h2 style="color:#101828;margin:0 0 8px">Welcome to Divyash Digital, ${name}!</h2>
         <p style="color:#667085;margin:0 0 8px">You've been added${designation ? ` as <strong>${designation}</strong>` : ""} with <strong>${role === Role.SUPER_ADMIN ? "Super Admin" : "Account Manager"}</strong> portal access.</p>
         <p style="color:#667085;margin:0 0 24px">Click below to set your password and activate your account. This link expires in 24 hours.</p>
@@ -192,12 +203,26 @@ router.patch(
         photoUrl: z.string().url().optional(),
         socialLinks: z.string().optional(),
         bankDetails: z.string().optional(),
+        reportTypes: z.array(z.nativeEnum(ReportTypeEnum)).optional(),
       })
       .parse(req.body);
 
     // Only SUPER_ADMIN or self can update bankDetails
     if (body.bankDetails !== undefined && !isSelf && !isSuperAdmin) {
       delete body.bankDetails;
+    }
+
+    // Report-type permissions are a privilege grant — SUPER_ADMIN only, even
+    // when a member is editing their own profile.
+    if (body.reportTypes !== undefined && !isSuperAdmin) {
+      delete body.reportTypes;
+    }
+
+    // Designation is assigned by SUPER_ADMIN (at invite time, or later from the
+    // Team page) — team members, including editing their own profile, cannot
+    // change it themselves.
+    if (body.designation !== undefined && !isSuperAdmin) {
+      delete body.designation;
     }
 
     const existing = await prisma.user.findUnique({ where: { id: req.params.id } });

@@ -14,9 +14,11 @@ const serviceInputSchema = z.object({
   description: z.string().optional(),
 });
 
-// GET /api/services — anyone authenticated can view the catalog
+// GET /api/services — SUPER_ADMIN only. Team members read service names via
+// the ClientLite projection (/workspace/clients), never the raw catalog.
 router.get(
   "/",
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (_req, res) => {
     const services = await prisma.service.findMany({ orderBy: { name: "asc" } });
     res.json(services);
@@ -26,7 +28,7 @@ router.get(
 // POST /api/services — admin only
 router.post(
   "/",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const data = serviceInputSchema.parse(req.body);
     const service = await prisma.service.create({ data });
@@ -37,7 +39,7 @@ router.post(
 // PATCH /api/services/:serviceId — admin only
 router.patch(
   "/:serviceId",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const data = serviceInputSchema.partial().parse(req.body);
     const service = await prisma.service.update({

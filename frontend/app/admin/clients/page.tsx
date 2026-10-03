@@ -9,6 +9,7 @@ import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import PhoneInput, { validatePhone } from "@/components/PhoneInput";
 import PasswordInput from "@/components/PasswordInput";
+import PageLoader from "@/components/PageLoader";
 import type { Client } from "@/types";
 
 interface NewClientForm {
@@ -18,6 +19,7 @@ interface NewClientForm {
   phone: string;
   gstin: string;
   address: string;
+  intro: string;
   portalPassword: string;
   assignedUserIds: string[];
   showOnPublicSite: boolean;
@@ -30,6 +32,7 @@ const EMPTY_FORM: NewClientForm = {
   phone: "",
   gstin: "",
   address: "",
+  intro: "",
   portalPassword: "",
   assignedUserIds: [],
   showOnPublicSite: false,
@@ -140,6 +143,7 @@ export default function AdminClientsPage() {
         ...(form.phone.trim() && { phone: form.phone.trim() }),
         ...(form.gstin.trim() && { gstin: form.gstin.trim() }),
         ...(form.address.trim() && { address: form.address.trim() }),
+        ...(form.intro.trim() && { intro: form.intro.trim() }),
         ...(form.portalPassword.trim() && { portalPassword: form.portalPassword.trim() }),
         assignedUserIds: form.assignedUserIds,
         showOnPublicSite: form.showOnPublicSite,
@@ -217,11 +221,7 @@ export default function AdminClientsPage() {
 
       {/* Table */}
       {!clients ? (
-        <div className="space-y-3 animate-pulse">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-xl bg-[var(--border)] opacity-40" />
-          ))}
-        </div>
+        <PageLoader fullScreen={false} />
       ) : clients.length === 0 ? (
         <div className="card py-16 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--muted)]">
@@ -431,6 +431,18 @@ export default function AdminClientsPage() {
                   Multiple team members can work on the same client. Can be changed later from the client's page.
                 </span>
               </div>
+
+              <label className="block text-sm sm:col-span-2">
+                <span className="mb-1 block text-[var(--muted)]">Public intro (shown on the website)</span>
+                <textarea
+                  rows={2}
+                  maxLength={280}
+                  placeholder="A short one-line description of this client, e.g. what they do…"
+                  className={`${inputClass("intro")} resize-none`}
+                  {...field("intro")}
+                />
+                <span className="mt-1 block text-right text-xs text-[var(--muted)]">{form.intro.length}/280</span>
+              </label>
 
               <label className="flex items-start gap-2.5 text-sm sm:col-span-2">
                 <input

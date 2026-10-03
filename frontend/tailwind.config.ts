@@ -9,16 +9,25 @@ const config: Config = {
         sans:    ["var(--font-jakarta)", "system-ui", "sans-serif"],
         display: ["var(--font-sora)",    "system-ui", "sans-serif"],
         script:  ["var(--font-lavishly-yours)", "cursive"],
+        // Portal-only face; `.portal-theme` applies it to the whole shell
+        portal:  ["var(--font-inter)",   "system-ui", "sans-serif"],
       },
       colors: {
         // ── Landing page palette ─────────────────────────────────
+        // Full 50…950 indigo ramp. The 200/300/800/900 steps were missing,
+        // so existing `brand-800` / `brand-900` classes silently rendered nothing.
         coral: {
           50:  "#EEF2FF",
           100: "#E0E7FF",
+          200: "#C7D2FE",
+          300: "#A5B4FC",
           400: "#818CF8",
           500: "#6366F1",   // primary brand — indigo
           600: "#4F46E5",
           700: "#4338CA",
+          800: "#3730A3",
+          900: "#312E81",
+          950: "#1E1B4B",
         },
         cream: "#FFFBF9",     // warm light bg
         mint:  "#2DBFA0",     // geometric accent (teal)
@@ -31,22 +40,34 @@ const config: Config = {
         ink:    "#1C1410",    // primary text
         ash:    "#6B7280",    // secondary / muted
 
+        // This overrides Tailwind's built-in slate. The 300/400/700/800/900
+        // steps were missing, so `dark:bg-slate-800` rendered nothing.
         slate: {
           50:  "#ECEEF2",
           100: "#E4E7ED",
           200: "#E2E8F0",
+          300: "#CBD5E1",
+          400: "#94A3B8",
           500: "#6B7280",
           600: "#4B5563",
+          700: "#334155",
+          800: "#1E293B",
+          900: "#0F172A",
         },
 
-        // ── Brand → indigo ───────────────────────────────────────
+        // ── Brand → indigo (same ramp as `coral`) ────────────────
         brand: {
           50:  "#EEF2FF",
           100: "#E0E7FF",
+          200: "#C7D2FE",
+          300: "#A5B4FC",
           400: "#818CF8",
           500: "#6366F1",
           600: "#4F46E5",
           700: "#4338CA",
+          800: "#3730A3",
+          900: "#312E81",
+          950: "#1E1B4B",
         },
 
         // ── Semantic ─────────────────────────────────────────────
@@ -57,6 +78,12 @@ const config: Config = {
       },
       borderRadius: {
         card: "8px",
+      },
+      boxShadow: {
+        "portal-xs": "0 1px 2px 0 rgba(16, 24, 40, 0.05)",
+        "portal-sm": "0 1px 3px 0 rgba(16, 24, 40, 0.10)",
+        "portal-md": "0 4px 8px -2px rgba(16, 24, 40, 0.10), 0 2px 4px -2px rgba(16, 24, 40, 0.06)",
+        "portal-lg": "0 12px 16px -4px rgba(16, 24, 40, 0.08), 0 4px 6px -2px rgba(16, 24, 40, 0.03)",
       },
       animation: {
         "float":         "float 6s ease-in-out infinite",

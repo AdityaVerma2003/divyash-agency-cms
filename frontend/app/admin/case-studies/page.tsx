@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
+import PageLoader from "@/components/PageLoader";
 import type { Client } from "@/types";
 
 interface CaseStudy {
@@ -138,9 +139,7 @@ export default function AdminCaseStudiesPage() {
       <div>
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Uploaded case studies</p>
         {!caseStudies ? (
-          <div className="space-y-2 animate-pulse">
-            {[1, 2].map((i) => <div key={i} className="h-14 rounded-xl bg-[var(--border)] opacity-40" />)}
-          </div>
+          <PageLoader fullScreen={false} />
         ) : caseStudies.length === 0 ? (
           <div className="card py-10 text-center text-sm text-[var(--muted)]">No case studies uploaded yet.</div>
         ) : (

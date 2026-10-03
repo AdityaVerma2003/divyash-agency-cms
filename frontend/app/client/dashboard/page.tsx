@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AreaChart,
@@ -15,7 +15,11 @@ import {
 } from "recharts";
 import { api } from "@/lib/api";
 import { fetchCurrentUser, getAccessToken } from "@/lib/auth";
-import type { ClientDashboardSummary, AuthUser, PerServiceMetric, Post, Client } from "@/types";
+import PageLoader from "@/components/PageLoader";
+import { reportTypeForCategory } from "@/lib/reportTypes";
+import { StatQuad } from "@/components/portal/StatQuad";
+import { EmptyState } from "@/components/portal/EmptyState";
+import type { ClientDashboardSummary, AuthUser, PerServiceMetric, Client } from "@/types";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 function formatCurrency(amount: number | string) {
@@ -139,64 +143,6 @@ const PLATFORM_BADGE: Record<string, string> = {
   LINKEDIN: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
 };
 
-/* ── Doodles ─────────────────────────────────────────────────────────────── */
-function DoodleRocket() {
-  return (
-    <svg
-      width="40"
-      height="40"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
-      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
-      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
-      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
-    </svg>
-  );
-}
-function DoodleStar() {
-  return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-}
-function DoodleChart() {
-  return (
-    <svg
-      width="36"
-      height="36"
-      viewBox="0 0 34 34"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <polyline points="2,28 9,20 15,24 22,12 28,6" />
-      <polyline points="24,6 28,6 28,10" />
-      <line x1="2" y1="30" x2="32" y2="30" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
 /* ── Category badge ──────────────────────────────────────────────────────── */
 function CategoryBadge({ category }: { category: string }) {
   const cfg = CAT[category as ServiceCategory];
@@ -313,14 +259,70 @@ function MetricTile({
   );
 }
 
+/* ── Mini monthly trend chart embedded in a service card ─────────────────── */
+function monthlySeriesFor(metric: PerServiceMetric): { data: Record<string, number>; label: string } | null {
+  if ("reachByMonth" in metric) return { data: metric.reachByMonth, label: "Profile reach" };
+  if ("leadsByMonth" in metric) return { data: metric.leadsByMonth, label: "Leads" };
+  if ("trafficByMonth" in metric) return { data: metric.trafficByMonth, label: "Traffic gain" };
+  if ("itemsByMonth" in metric) return { data: metric.itemsByMonth, label: "Items delivered" };
+  return null;
+}
+
+function MiniTrendChart({ data, color }: { data: Record<string, number>; color: string }) {
+  // `data` is sparse (only months with an entry), so zero-fill a real 6-month
+  // window ending this month — otherwise a single data point renders as one
+  // bar stretched across the whole chart, looking like a solid block.
+  const now = new Date();
+  const chartData: { month: string; value: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    chartData.push({ month: formatMonth(key), value: data[key] ?? 0 });
+  }
+  const hasData = chartData.some((d) => d.value > 0);
+  if (!hasData) return null;
+
+  return (
+    <div className="mt-3 h-12">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          <Bar dataKey="value" fill={color} radius={[2, 2, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ── Card shell: links through to the detail page when one exists ───────── */
+function CardShell({ href, className, children }: { href: string | null; className: string; children: React.ReactNode }) {
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return <div className={className}>{children}</div>;
+}
+
 /* ── Per-service performance card ────────────────────────────────────────── */
 function ServicePerfCard({ metric }: { metric: PerServiceMetric }) {
   const cfg = CAT[metric.category as ServiceCategory];
   const dot = cfg?.dot ?? "#6B7280";
   const iconBg = cfg?.iconBg ?? "#6B7280";
+  const reportType = reportTypeForCategory(metric.category);
+  const trend = monthlySeriesFor(metric);
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/25 hover:-translate-y-0.5 motion-reduce:translate-y-0">
+    <CardShell
+      href={reportType ? `/client/reporting/${metric.clientServiceId}` : null}
+      className="group relative block overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all hover:shadow-portal-sm motion-reduce:translate-y-0"
+    >
+      {reportType && (
+        <span className="absolute right-4 top-4 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)] opacity-0 transition-opacity group-hover:opacity-100">
+          View details →
+        </span>
+      )}
       {/* Accent bar on hover */}
       <div
         className="absolute inset-x-0 top-0 h-0.5 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity"
@@ -335,51 +337,65 @@ function ServicePerfCard({ metric }: { metric: PerServiceMetric }) {
             {metric.serviceName}
           </p>
         </div>
-        <div className="flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-        </div>
+        <span className="badge badge-success flex-shrink-0">Active</span>
       </div>
 
       {/* Metrics grid */}
       {"totalPosts" in metric ? (
         // SMM
         <div className="grid grid-cols-3 gap-3 rounded-xl bg-[var(--surface-2)] p-3">
+          <MetricTile value={String(metric.totalPosts)} label="Posts" accent={iconBg} />
+          <MetricTile value={formatNumber(metric.totalProfileReach)} label="Profile reach" />
+          <MetricTile value={String(metric.totalLeads)} label="Leads" sub="from paid ads" />
+        </div>
+      ) : "totalAdSpend" in metric ? (
+        // GOOGLE_ADS / META_ADS / PERFORMANCE_MARKETING
+        <div className="grid grid-cols-3 gap-3 rounded-xl bg-[var(--surface-2)] p-3">
+          <MetricTile value={formatCurrency(metric.totalAdSpend)} label="Ad spend" accent={iconBg} />
+          <MetricTile value={String(metric.totalConversion)} label="Conversions" />
+          <MetricTile value={`${metric.roasPct.toFixed(1)}%`} label="Avg ROAS" />
+        </div>
+      ) : "totalLinksSubmission" in metric ? (
+        // SEO
+        <div className="grid grid-cols-3 gap-3 rounded-xl bg-[var(--surface-2)] p-3">
+          <MetricTile value={String(metric.totalLinksSubmission)} label="Links submitted" accent={iconBg} />
+          <MetricTile value={formatNumber(metric.trafficGain)} label="Traffic gain" />
+          <MetricTile value={String(metric.totalArticleCreated)} label="Articles" />
+        </div>
+      ) : "totalItems" in metric ? (
+        // Graphic Design / Content Creation
+        <div className="grid grid-cols-2 gap-3 rounded-xl bg-[var(--surface-2)] p-3">
+          <MetricTile value={String(metric.totalItems)} label="Items delivered" accent={iconBg} />
           <MetricTile
-            value={String(metric.totalPosts)}
-            label="Posts"
-            sub="last 3 mo"
-            accent={iconBg}
-          />
-          <MetricTile
-            value={formatNumber(metric.totalReach)}
-            label="Reach"
-            sub="last 3 mo"
-          />
-          <MetricTile
-            value={formatNumber(metric.totalEngagement)}
-            label="Engagement"
-            sub="likes+comments"
+            value={metric.latestSubmissionDate ? formatDate(metric.latestSubmissionDate) : "—"}
+            label="Last submission"
           />
         </div>
-      ) : "totalSpend" in metric ? (
-        // GOOGLE_ADS / META_ADS
-        <div className="grid grid-cols-3 gap-3 rounded-xl bg-[var(--surface-2)] p-3">
-          <MetricTile
-            value={formatCurrency(metric.totalSpend)}
-            label="Spend"
-            sub="last 3 mo"
-            accent={iconBg}
-          />
-          <MetricTile
-            value={String(metric.totalConversions)}
-            label="Conversions"
-            sub="last 3 mo"
-          />
-          <MetricTile
-            value={`${metric.avgROAS.toFixed(2)}×`}
-            label="Avg ROAS"
-            sub="return on ad spend"
-          />
+      ) : "websiteLink" in metric ? (
+        // Website Development — detail card, not a metric grid
+        <div className="space-y-1.5 rounded-xl bg-[var(--surface-2)] p-3 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--muted)]">Website</span>
+            {metric.websiteLink ? (
+              <a href={metric.websiteLink} target="_blank" rel="noreferrer" className="font-semibold text-coral-600 hover:underline truncate max-w-[160px]">
+                {metric.websiteLink}
+              </a>
+            ) : (
+              <span className="font-semibold text-[var(--ink)]">Not set yet</span>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--muted)]">Hosting</span>
+            <span className="font-semibold text-[var(--ink)]">{metric.hosting === "DD_SHARED" ? "Divyash shared" : metric.hosting === "CLIENT_OWN" ? "Client-owned" : "—"}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--muted)]">SEO enhanced</span>
+            <span className="font-semibold text-[var(--ink)]">{metric.seoEnhanced ? "Yes" : "No"}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--muted)]">Maintenance</span>
+            <span className="font-semibold text-[var(--ink)]">{metric.maintenanceAgreed ? "Agreed" : "—"}</span>
+          </div>
         </div>
       ) : (
         // Other — no detailed metrics yet
@@ -389,7 +405,9 @@ function ServicePerfCard({ metric }: { metric: PerServiceMetric }) {
           </p>
         </div>
       )}
-    </div>
+
+      {trend && <MiniTrendChart data={trend.data} color={iconBg} />}
+    </CardShell>
   );
 }
 
@@ -424,29 +442,18 @@ function ReachChart({ data }: { data: { month: string; totalReach: number }[] })
   const chartData = data.map((d) => ({ ...d, month: formatMonth(d.month) }));
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-      <div className="h-1 bg-gradient-to-r from-[#0284C7] to-[#2DBFA0]" />
+    <div className="card p-0 overflow-hidden">
       <div className="p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="section-label">Reach over time</p>
-            <p className="text-xs text-[var(--muted)] mt-0.5">Monthly organic reach across all social posts</p>
-          </div>
-          <div className="text-[var(--muted)] opacity-30">
-            <DoodleChart />
-          </div>
+        <div className="mb-4">
+          <p className="section-label">Reach over time</p>
+          <p className="text-xs text-[var(--muted)] mt-0.5">Monthly organic reach across all social posts</p>
         </div>
 
         {!hasData ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-3 text-[var(--muted)] opacity-30">
-              <DoodleChart />
-            </div>
-            <p className="text-sm font-semibold text-[var(--ink)]">No reach data yet</p>
-            <p className="text-xs text-[var(--muted)] mt-1">
-              Posts published by your team will appear here once data is logged.
-            </p>
-          </div>
+          <EmptyState
+            title="No reach data yet"
+            description="Posts published by your team will appear here once data is logged."
+          />
         ) : (
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -496,29 +503,18 @@ function LeadsChart({ data }: { data: { month: string; count: number; revenueAtt
   const chartData = data.map((d) => ({ ...d, month: formatMonth(d.month) }));
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-      <div className="h-1 bg-gradient-to-r from-[#7C3AED] to-[#6366F1]" />
+    <div className="card p-0 overflow-hidden">
       <div className="p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="section-label">Lead pipeline</p>
-            <p className="text-xs text-[var(--muted)] mt-0.5">Monthly new leads and attributed revenue</p>
-          </div>
-          <div className="text-[var(--muted)] opacity-30">
-            <DoodleRocket />
-          </div>
+        <div className="mb-4">
+          <p className="section-label">Lead pipeline</p>
+          <p className="text-xs text-[var(--muted)] mt-0.5">Monthly new leads and attributed revenue</p>
         </div>
 
         {!hasData ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-3 text-[var(--muted)] opacity-30">
-              <DoodleRocket />
-            </div>
-            <p className="text-sm font-semibold text-[var(--ink)]">No leads logged yet</p>
-            <p className="text-xs text-[var(--muted)] mt-1">
-              Your account manager will log leads as they come in from your campaigns.
-            </p>
-          </div>
+          <EmptyState
+            title="No leads logged yet"
+            description="Your account manager will log leads as they come in from your campaigns."
+          />
         ) : (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -552,51 +548,6 @@ function LeadsChart({ data }: { data: { month: string; count: number; revenueAtt
 
 /* ── Recent posts with pagination ────────────────────────────────────────── */
 const POSTS_PAGE_SIZE = 8;
-
-function RecentPostsSection({ clientId }: { clientId: string }) {
-  const [posts, setPosts] = useState<Post[] | null>(null);
-  const [shown, setShown] = useState(POSTS_PAGE_SIZE);
-
-  const load = useCallback(async () => {
-    try {
-      // Fetch posts for all SMM services of this client via posts endpoint
-      // We use the global posts list scoped to client via clientServiceId; since we don't have
-      // a client-level posts endpoint, fetch recent posts via dashboard recentPosts already in
-      // the summary but that's capped at 5. Instead load posts per clientServiceId fetched from
-      // active services — but we don't have that here. Use a simple GET with no filter but
-      // CLIENT role scoping will restrict to own posts. We simulate by fetching a generous list.
-      // The backend /posts endpoint requires clientServiceId, so we'll use recentPosts from
-      // summary for the table (already fetched) and expose via prop.
-      setPosts([]); // placeholder — actual data comes via prop `recentPosts`
-    } catch {
-      setPosts([]);
-    }
-  }, [clientId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return null; // rendered inline below using summary.recentPosts
-}
-
-/* ── Stat pill used in top strip ─────────────────────────────────────────── */
-function StatPill({
-  value,
-  label,
-  color,
-}: {
-  value: string;
-  label: string;
-  color: string;
-}) {
-  return (
-    <div className="text-center">
-      <p className="font-display text-2xl font-extrabold tabular-nums" style={{ color }}>
-        {value}
-      </p>
-      <p className="mt-0.5 text-xs font-medium text-[var(--muted)]">{label}</p>
-    </div>
-  );
-}
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
 export default function ClientDashboardPage() {
@@ -655,21 +606,7 @@ export default function ClientDashboardPage() {
     );
 
   if (!summary) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-28 rounded-2xl bg-[var(--border)] opacity-50" />
-        <div className="h-8 w-48 rounded-lg bg-[var(--border)] opacity-30" />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-36 rounded-2xl bg-[var(--border)] opacity-30" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="h-64 rounded-2xl bg-[var(--border)] opacity-20" />
-          <div className="h-64 rounded-2xl bg-[var(--border)] opacity-20" />
-        </div>
-      </div>
-    );
+    return <PageLoader fullScreen={false} />;
   }
 
   const isSuspended = clientInfo?.status === "SUSPENDED";
@@ -679,12 +616,17 @@ export default function ClientDashboardPage() {
   const dueIn = invoice ? daysUntil(invoice.dueDate) : null;
   const firstName = user?.name?.split(" ")[0] ?? "there";
 
-  // SMM and Ads perService entries
-  const smmMetrics = summary.perService.filter((m) => m.category === "SMM");
-  const adsMetrics = summary.perService.filter(
-    (m) => m.category === "GOOGLE_ADS" || m.category === "META_ADS"
+  // A metric "has performance data" once the backend attached a real
+  // summarize* result (any of the type-discriminating fields below), rather
+  // than falling back to the bare clientServiceId/serviceName/category shape.
+  const hasPerformance = summary.perService.some(
+    (m) =>
+      "totalPosts" in m ||
+      "totalAdSpend" in m ||
+      "totalLinksSubmission" in m ||
+      "totalItems" in m ||
+      "websiteLink" in m
   );
-  const hasPerformance = smmMetrics.length > 0 || adsMetrics.length > 0;
 
   // Aggregate totals for snapshot strip
   const totalReachAll = summary.reachTrend.reduce((s, d) => s + d.totalReach, 0);
@@ -711,68 +653,27 @@ export default function ClientDashboardPage() {
         </div>
       )}
 
-      {/* ── Welcome hero card ──────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-coral-500 to-coral-600 p-6 text-white">
-        <div
-          className="blob pointer-events-none absolute -right-10 -top-10 h-40 w-40 bg-white opacity-[0.07]"
-          aria-hidden
-        />
-        <div
-          className="blob pointer-events-none absolute -bottom-8 left-1/3 h-28 w-28 bg-coral-700 opacity-30"
-          aria-hidden
-          style={{ animationDelay: "-4s" }}
-        />
-        <div className="pointer-events-none absolute right-20 top-3 text-white opacity-[0.12]" aria-hidden>
-          <DoodleRocket />
-        </div>
-        <div className="pointer-events-none absolute right-6 bottom-3 text-white opacity-[0.10]" aria-hidden>
-          <DoodleStar />
-        </div>
-        <div className="pointer-events-none absolute right-[45%] top-2 text-white opacity-[0.08]" aria-hidden>
-          <DoodleChart />
-        </div>
-
-        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 backdrop-blur">
-                <span className="font-display text-sm font-extrabold text-white">👋</span>
-              </div>
-              <span className="text-xs font-semibold text-white/70 uppercase tracking-wide">
-                Welcome back
-              </span>
-            </div>
-            <h1 className="font-display text-2xl font-extrabold text-white leading-tight">
-              {firstName}!
-            </h1>
-            <p className="mt-1 text-sm text-white/75">
-              {summary.activeServices.length > 0
-                ? `${summary.activeServices.length} active service${summary.activeServices.length > 1 ? "s" : ""} running — here's what they're delivering.`
-                : "No active services yet — get in touch to get started."}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={downloadReport}
-              disabled={downloadingReport}
-              className="flex-shrink-0 inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/25 transition-colors backdrop-blur-sm disabled:opacity-60"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              {downloadingReport ? "Generating…" : "Monthly report"}
-            </button>
-            <a
-              href="mailto:info@divyashdigital.co.in"
-              className="flex-shrink-0 inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/25 transition-colors backdrop-blur-sm"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-              Contact us
-            </a>
-          </div>
+      {/* ── Title row ──────────────────────────────────── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-[var(--muted)]">
+          {summary.activeServices.length > 0
+            ? `${summary.activeServices.length} active service${summary.activeServices.length > 1 ? "s" : ""} running — here's what they're delivering.`
+            : "No active services yet — get in touch to get started."}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={downloadReport} disabled={downloadingReport} className="btn btn-ghost disabled:opacity-60">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            {downloadingReport ? "Generating…" : "Monthly report"}
+          </button>
+          <a href="mailto:info@divyashdigital.co.in" className="btn btn-ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+            Contact us
+          </a>
         </div>
       </div>
 
@@ -787,30 +688,16 @@ export default function ClientDashboardPage() {
         </div>
       )}
 
-      {/* ── Snapshot strip ────────────────────────────── */}
-      {!isSuspended && (totalReachAll > 0 || totalLeadsAll > 0 || summary.totalSpendAmount > 0) && (
-        <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-          <div className="h-1 bg-gradient-to-r from-coral-500 via-[#2DBFA0] to-[#5B7CF7]" />
-          <div className="overflow-x-auto">
-          <div className="grid grid-cols-3 divide-x divide-[var(--border)] p-5 min-w-[320px]">
-            <StatPill
-              value={formatNumber(totalReachAll)}
-              label="Total reach (6 mo)"
-              color="#2DBFA0"
-            />
-            <StatPill
-              value={String(totalLeadsAll)}
-              label="Leads (6 mo)"
-              color="#5B7CF7"
-            />
-            <StatPill
-              value={formatCurrency(summary.totalSpendAmount)}
-              label="Total invested"
-              color="#6366F1"
-            />
-          </div>
-          </div>
-        </div>
+      {/* ── KPI quad ──────────────────────────────────── */}
+      {!isSuspended && (
+        <StatQuad
+          items={[
+            { label: "Total reach (6 mo)", value: formatNumber(totalReachAll), dotColor: "#2DBFA0" },
+            { label: "Leads (6 mo)", value: String(totalLeadsAll), dotColor: "#5B7CF7" },
+            { label: "Total invested", value: formatCurrency(summary.totalSpendAmount), dotColor: "#6366F1" },
+            { label: "Active services", value: String(summary.activeServices.length), dotColor: "#F59E0B" },
+          ]}
+        />
       )}
 
       {/* ── Main layout (hidden for suspended accounts) ── */}
@@ -838,16 +725,11 @@ export default function ClientDashboardPage() {
             summary.activeServices.length > 0 && (
               <section>
                 <p className="section-label mb-4">Performance by service</p>
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] py-14 text-center px-6">
-                  <div className="mb-3 text-[var(--muted)] opacity-40">
-                    <DoodleChart />
-                  </div>
-                  <p className="text-sm font-semibold text-[var(--ink)]">
-                    Performance data is being collected
-                  </p>
-                  <p className="text-xs text-[var(--muted)] mt-1 max-w-xs">
-                    Your account manager is logging posts, campaigns and leads. Check back soon — your metrics will appear here.
-                  </p>
+                <div className="card">
+                  <EmptyState
+                    title="Performance data is being collected"
+                    description="Your account manager is logging reports. Check back soon — your metrics will appear here."
+                  />
                 </div>
               </section>
             )
@@ -868,21 +750,15 @@ export default function ClientDashboardPage() {
               </span>
             </div>
             {summary.activeServices.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] py-14 text-center">
-                <div className="mb-3 text-[var(--muted)] opacity-40">
-                  <DoodleRocket />
-                </div>
-                <p className="text-sm font-semibold text-[var(--ink)]">No active services yet</p>
-                <p className="text-xs text-[var(--muted)] mt-1">
-                  Contact your account manager to get started.
-                </p>
+              <div className="card">
+                <EmptyState title="No active services yet" description="Contact your account manager to get started." />
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {summary.activeServices.map((cs) => (
                   <div
                     key={cs.id}
-                    className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/25 hover:-translate-y-0.5 motion-reduce:translate-y-0"
+                    className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all hover:shadow-portal-sm motion-reduce:translate-y-0"
                   >
                     <div
                       className="absolute inset-x-0 top-0 h-0.5 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity"
@@ -899,9 +775,7 @@ export default function ClientDashboardPage() {
                           {cs.service.name}
                         </p>
                       </div>
-                      <div className="flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                      </div>
+                      <span className="badge badge-success flex-shrink-0">Active</span>
                     </div>
                     {cs.service.description && (
                       <p className="text-sm leading-relaxed text-[var(--muted)] line-clamp-2 mb-4">
@@ -976,20 +850,12 @@ export default function ClientDashboardPage() {
 
           {/* Empty state when no services at all */}
           {summary.activeServices.length === 0 && (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] py-20 text-center px-6">
-              <div className="mb-4 text-[var(--muted)] opacity-30">
-                <DoodleRocket />
-              </div>
-              <p className="text-base font-bold text-[var(--ink)]">Your dashboard is ready</p>
-              <p className="text-sm text-[var(--muted)] mt-2 max-w-xs leading-relaxed">
-                Once your account manager activates your services, your performance data will appear right here.
-              </p>
-              <a
-                href="mailto:info@divyashdigital.co.in"
-                className="btn btn-primary mt-6"
-              >
-                Get started
-              </a>
+            <div className="card">
+              <EmptyState
+                title="Your dashboard is ready"
+                description="Once your account manager activates your services, your performance data will appear right here."
+                action={<a href="mailto:info@divyashdigital.co.in" className="btn btn-primary">Get started</a>}
+              />
             </div>
           )}
         </div>

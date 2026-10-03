@@ -23,9 +23,13 @@ const subscriptionInputSchema = z.object({
 });
 
 // GET /api/client-services?clientId=... — subscriptions for one client
-// (clients are scoped to their own; admins can pass any clientId)
+// (clients are scoped to their own; admins can pass any clientId).
+// SUPER_ADMIN + CLIENT only: the payload carries `rate`, i.e. contract
+// values, which a team member must never see. The workspace reads service
+// names from the ClientLite DTO instead.
 router.get(
   "/",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   scopeToOwnClient,
   asyncHandler(async (req, res) => {
     const clientId =
@@ -43,7 +47,7 @@ router.get(
 // POST /api/client-services — admin only
 router.post(
   "/",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const data = subscriptionInputSchema.parse(req.body);
     const subscription = await prisma.clientService.create({ data });
@@ -63,7 +67,7 @@ router.post(
 // PATCH /api/client-services/:id — admin only (general field updates)
 router.patch(
   "/:id",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const data = subscriptionInputSchema.partial().parse(req.body);
     const subscription = await prisma.clientService.update({
@@ -85,7 +89,7 @@ const statusChangeSchema = z.object({
 // Pause / resume / end a subscription with a reason and audit trail.
 router.patch(
   "/:id/status",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const { status, reason, notes } = statusChangeSchema.parse(req.body);
 

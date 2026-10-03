@@ -17,9 +17,12 @@ const leadInputSchema = z.object({
   revenueAttributed: z.number().min(0).default(0),
 });
 
-// GET /api/leads?clientId=...
+// GET /api/leads?clientId=... (legacy, retired as of the per-service reporting system --
+// kept so historical PDF data stays readable). SUPER_ADMIN or the owning
+// CLIENT only.
 router.get(
   "/",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   asyncHandler(async (req, res) => {
     // CLIENT role: always scope to own client
     const clientId =
@@ -46,7 +49,7 @@ router.get(
 // POST /api/leads — admin only
 router.post(
   "/",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const data = leadInputSchema.parse(req.body);
     const lead = await prisma.lead.create({
@@ -59,7 +62,7 @@ router.post(
 // DELETE /api/leads/:id — admin only
 router.delete(
   "/:id",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } });
     if (!lead) throw ApiError.notFound("Lead not found");

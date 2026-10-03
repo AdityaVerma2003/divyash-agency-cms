@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
+import PageLoader from "@/components/PageLoader";
 import type { Invoice } from "@/types";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
@@ -59,33 +60,6 @@ const INV_STATUS: Record<Invoice["status"], { cls: string; label: string }> = {
 function StatusBadge({ status }: { status: Invoice["status"] }) {
   const cfg = INV_STATUS[status];
   return <span className={`badge whitespace-nowrap ${cfg.cls}`}>{cfg.label}</span>;
-}
-
-/* ── Loading skeleton ────────────────────────────────────────────────────── */
-function LoadingSkeleton() {
-  return (
-    <div className="space-y-6 animate-pulse max-w-5xl mx-auto">
-      {/* Back link */}
-      <div className="h-4 w-28 rounded-md bg-[var(--border)] opacity-40" />
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="h-8 w-56 rounded-lg bg-[var(--border)] opacity-50" />
-        <div className="h-6 w-20 rounded-full bg-[var(--border)] opacity-30" />
-      </div>
-      {/* Two-col layout */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-4">
-          <div className="h-36 rounded-2xl bg-[var(--border)] opacity-30" />
-          <div className="h-52 rounded-2xl bg-[var(--border)] opacity-20" />
-          <div className="h-28 rounded-2xl bg-[var(--border)] opacity-20" />
-        </div>
-        <div className="space-y-4">
-          <div className="h-48 rounded-2xl bg-[var(--border)] opacity-30" />
-          <div className="h-36 rounded-2xl bg-[var(--border)] opacity-20" />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
@@ -255,7 +229,7 @@ export default function ClientInvoiceDetailPage() {
     );
   }
 
-  if (!invoice) return <LoadingSkeleton />;
+  if (!invoice) return <PageLoader fullScreen={false} />;
 
   /* ── Derived values ─────────────────────────────────────────────────── */
   const payments = invoice.payments ?? [];

@@ -63,7 +63,7 @@ router.patch(
 // GET /api/notifications/admin — all users' notifications, admin only
 router.get(
   "/admin",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const page = Math.max(Number(req.query.page) || 1, 1);

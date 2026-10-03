@@ -5,6 +5,7 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { useReveal } from "@/hooks/useReveal";
 import { HoverTransition } from "@/components/HoverTransition";
+import PageLoader from "@/components/PageLoader";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
@@ -319,15 +320,7 @@ export default function TeamPage() {
 
       <section className="mx-auto max-w-6xl px-5 pb-24 space-y-16">
         {loading ? (
-          <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 flex flex-col items-center gap-4">
-                <div className="h-28 w-28 rounded-2xl bg-[var(--surface-2)]" />
-                <div className="h-3 rounded bg-[var(--border)] w-2/3" />
-                <div className="h-2.5 rounded bg-[var(--border)] w-1/2" />
-              </div>
-            ))}
-          </div>
+          <PageLoader fullScreen={false} />
         ) : leaders.length === 0 && rest.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-[var(--muted)] text-sm">Team profiles coming soon.</p>

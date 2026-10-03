@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import ThemeToggle from "@/components/ThemeToggle";
 import PasswordInput from "@/components/PasswordInput";
+import PageLoader from "@/components/PageLoader";
 
 function ResetPasswordForm() {
   const params = useSearchParams();
@@ -158,12 +159,8 @@ export default function ResetPasswordPage() {
         </div>
 
         <Suspense fallback={
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-7 animate-pulse">
-            <div className="h-6 w-40 bg-[var(--border)] rounded mb-3 opacity-50" />
-            <div className="h-4 w-full bg-[var(--border)] rounded opacity-30 mb-6" />
-            <div className="h-11 w-full bg-[var(--border)] rounded-xl opacity-40 mb-4" />
-            <div className="h-11 w-full bg-[var(--border)] rounded-xl opacity-40 mb-5" />
-            <div className="h-11 w-full bg-coral-500/20 rounded-xl" />
+          <div className="flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-10">
+            <PageLoader inline />
           </div>
         }>
           <ResetPasswordForm />

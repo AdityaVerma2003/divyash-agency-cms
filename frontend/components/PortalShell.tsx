@@ -3,107 +3,265 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { fetchCurrentUser, logout, getAccessToken } from "@/lib/auth";
+import { fetchCurrentUser, logout, getAccessToken, homePathForRole } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
 import { ToastProvider } from "@/components/Toast";
+import PageLoader from "@/components/PageLoader";
+import CommandPalette, { type PaletteEntry } from "@/components/CommandPalette";
+import { Icon, type IconName } from "@/components/icons";
+import { Avatar } from "@/components/portal/Avatar";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { AuthUser, Role, Notification } from "@/types";
 
-interface NavItem {
+export interface NavChild {
   label: string;
   href: string;
-  visibleTo?: Role[]; // if set, only shown to users whose role is in this list
+  visibleTo?: Role[];
+  /** When true the shell renders the page's <h1> + breadcrumb; the page must not. */
+  shellHeader?: boolean;
+  subtitle?: string;
 }
+
+export interface NavItem extends NavChild {
+  icon?: IconName;
+  children?: NavChild[];
+}
+
+export interface NavGroup {
+  heading?: string;
+  items: NavItem[];
+}
+
+export type PortalVariant = "admin" | "client" | "workspace";
 
 interface PortalShellProps {
   allowedRoles: Role[];
-  navItems: NavItem[];
+  navGroups: NavGroup[];
   children: React.ReactNode;
+  variant?: PortalVariant;
+  /** Shown in the header user menu; omit for portals with no profile page. */
+  profileHref?: string;
 }
 
-export default function PortalShell({ allowedRoles, navItems, children }: PortalShellProps) {
+const VARIANT_LABEL: Record<PortalVariant, string> = {
+  admin: "Agency portal",
+  client: "Client portal",
+  workspace: "Workspace",
+};
+
+const COLLAPSE_KEY = "portal-sidebar-collapsed";
+
+function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
+function humanRole(role: Role) {
+  return role.toLowerCase().replace(/_/g, " ");
+}
+
+/* ── One sidebar row (with optional collapsible children) ──────────────────── */
+function NavRow({
+  item,
+  collapsed,
+  role,
+  onNavigate,
+}: {
+  item: NavItem;
+  collapsed: boolean;
+  role: Role;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const children = (item.children ?? []).filter((c) => !c.visibleTo || c.visibleTo.includes(role));
+  const hasChildren = children.length > 0;
+  const childActive = children.some((c) => isActive(pathname, c.href));
+  const selfActive = isActive(pathname, item.href);
+  const [open, setOpen] = useState(childActive);
+
+  useEffect(() => {
+    if (childActive) setOpen(true);
+  }, [childActive]);
+
+  const rowCls = (active: boolean) =>
+    cn(
+      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+      collapsed && "justify-center px-0",
+      active
+        ? "bg-[var(--surface-3)] text-[var(--ink)]"
+        : "text-[var(--ink-2)] hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
+    );
+
+  if (hasChildren) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => (collapsed ? undefined : setOpen((o) => !o))}
+          className={rowCls(selfActive || childActive)}
+          aria-expanded={open}
+        >
+          {item.icon && (
+            <Icon
+              name={item.icon}
+              className={cn(
+                "flex-shrink-0",
+                selfActive || childActive ? "text-[var(--portal-accent)]" : "text-[var(--muted)]"
+              )}
+            />
+          )}
+          {!collapsed && (
+            <>
+              <span className="flex-1 text-left">{item.label}</span>
+              <Icon
+                name="chevronDown"
+                size={16}
+                className={cn("flex-shrink-0 text-[var(--muted)] transition-transform", open && "rotate-180")}
+              />
+            </>
+          )}
+        </button>
+
+        {open && !collapsed && (
+          <div className="mt-1 space-y-1 pl-[2.125rem]">
+            {children.map((child) => (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={onNavigate}
+                className={cn(
+                  "block rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  isActive(pathname, child.href)
+                    ? "bg-[var(--surface-3)] text-[var(--ink)]"
+                    : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
+                )}
+              >
+                {child.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <Link href={item.href} onClick={onNavigate} title={collapsed ? item.label : undefined} className={rowCls(selfActive)}>
+      {item.icon && (
+        <Icon
+          name={item.icon}
+          className={cn("flex-shrink-0", selfActive ? "text-[var(--portal-accent)]" : "text-[var(--muted)]")}
+        />
+      )}
+      {!collapsed && <span className="flex-1">{item.label}</span>}
+    </Link>
+  );
+}
+
+export default function PortalShell({
+  allowedRoles,
+  navGroups,
+  children,
+  variant = "admin",
+  profileHref,
+}: PortalShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const drawerRef = useRef<HTMLDivElement>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  // Notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [bellOpen, setBellOpen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
+  const accent = variant === "workspace" ? "#2DBFA0" : "#6366F1";
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+
   useEffect(() => {
     fetchCurrentUser().then((current) => {
-      if (!current || !allowedRoles.includes(current.role)) {
+      if (!current) {
         router.replace("/login");
         return;
       }
-      // Account managers must finish onboarding first; super admins skip it
+      if (!allowedRoles.includes(current.role)) {
+        // Logged in, just in the wrong portal — send them home rather than
+        // bouncing to /login (e.g. a team member hitting /admin/* directly).
+        router.replace(homePathForRole(current.role));
+        return;
+      }
+      // Team members must finish onboarding first; super admins skip it
       if (current.role === "ACCOUNT_MANAGER" && current.onboardingStatus !== "COMPLETE") {
         router.replace("/team/complete-profile");
         return;
       }
       setUser(current);
       setChecking(false);
-      // Load notifications after auth confirmed
       api.get<Notification[]>("/notifications", getAccessToken()).then(setNotifications).catch(() => undefined);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Close bell on outside click — use data attribute so multiple bell instances don't conflict
+  // Close popovers on outside click
   useEffect(() => {
-    if (!bellOpen) return;
+    if (!bellOpen && !userMenuOpen) return;
     function onClickOutside(e: MouseEvent) {
-      if (!(e.target as Element).closest?.("[data-bell]")) {
-        setBellOpen(false);
-      }
+      const target = e.target as Element;
+      if (bellOpen && !target.closest?.("[data-bell]")) setBellOpen(false);
+      if (userMenuOpen && !target.closest?.("[data-user-menu]")) setUserMenuOpen(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [bellOpen]);
+  }, [bellOpen, userMenuOpen]);
+
+  useEffect(() => {
+    setDrawerOpen(false);
+    setBellOpen(false);
+    setUserMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drawerOpen]);
 
   function markRead(id: string, link?: string | null) {
-    // Fire-and-forget — don't await; update UI and navigate immediately
     api.patch(`/notifications/${id}/read`, {}, getAccessToken()).catch(() => undefined);
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
     setBellOpen(false);
     if (link) router.push(link);
   }
 
   function markAllRead() {
-    // Fire-and-forget
     api.patch("/notifications/read-all", {}, getAccessToken()).catch(() => undefined);
-    setNotifications([]);
-    setBellOpen(false);
-  }
-
-  // Close drawer on route change
-  useEffect(() => { setDrawerOpen(false); }, [pathname]);
-
-  // Trap focus / close on Escape
-  useEffect(() => {
-    if (!drawerOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawerOpen(false); };
-    document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
-  }, [drawerOpen]);
-
-  if (checking || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--page-bg)]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-6 w-6 rounded-md bg-coral-500 animate-pulse" />
-          <p className="text-sm text-[var(--muted)]">Loading…</p>
-        </div>
-      </div>
-    );
+    // Flip the flag — don't discard the list, the user still wants to read them
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   }
 
   async function handleLogout() {
@@ -111,259 +269,338 @@ export default function PortalShell({ allowedRoles, navItems, children }: Portal
     router.replace("/login");
   }
 
-  const isPortalClient = user.role === "CLIENT";
-
-  /* ── Notification bell ───────────────────────────────────────────────── */
-  function BellButton({ align = "right", openUp = false }: { align?: "left" | "right"; openUp?: boolean; }) {
-    function timeAgo(iso: string) {
-      const diff = Date.now() - new Date(iso).getTime();
-      const m = Math.floor(diff / 60000);
-      if (m < 1) return "just now";
-      if (m < 60) return `${m}m ago`;
-      const h = Math.floor(m / 60);
-      if (h < 24) return `${h}h ago`;
-      return `${Math.floor(h / 24)}d ago`;
-    }
-
+  if (checking || !user) {
     return (
-      <div data-bell className="relative flex-shrink-0">
-        <button
-          onClick={() => setBellOpen((o) => !o)}
-          className="relative flex h-8 w-8 items-center justify-center rounded-lg text-white/50 hover:text-white transition-colors"
-          aria-label="Notifications"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-coral-500 text-[9px] font-bold text-white leading-none">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-        </button>
-
-        {bellOpen && (
-          <div className={`absolute z-50 w-72 max-w-[calc(100vw-1rem)] rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xl shadow-black/10 dark:shadow-black/40 ${openUp ? "bottom-full mb-2" : "top-10"} ${align === "left" ? "left-0" : "right-0"}`}>
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-              <p className="text-sm font-semibold text-[var(--ink)]">Notifications</p>
-              {unreadCount > 0 && (
-                <button onClick={markAllRead} className="text-xs text-coral-500 hover:text-coral-600 font-medium transition-colors">
-                  Mark all read
-                </button>
-              )}
-            </div>
-            <div className="max-h-72 overflow-y-auto">
-              {notifications.length === 0 ? (
-                <p className="px-4 py-8 text-center text-sm text-[var(--muted)]">No new notifications</p>
-              ) : (
-                notifications.slice(0, 20).map((n) => (
-                  <button
-                    key={n.id}
-                    onClick={() => markRead(n.id, n.link)}
-                    className={`w-full text-left px-4 py-3 border-b border-[var(--border)] last:border-0 transition-colors hover:bg-[var(--surface-2)] ${n.isRead ? "opacity-50" : ""}`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <span className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${!n.isRead ? "bg-coral-500" : "bg-transparent"}`} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs text-[var(--ink)] leading-snug line-clamp-2">{n.message}</p>
-                        <div className="mt-0.5 flex items-center gap-1.5">
-                          <p className="text-[10px] text-[var(--muted)]">{timeAgo(n.createdAt)}</p>
-                          {n.link && <span className="text-[10px] text-coral-500">→ view</span>}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-            {!isPortalClient && (
-              <div className="border-t border-[var(--border)] px-4 py-2.5">
-                <button
-                  onClick={() => { setBellOpen(false); router.push("/admin/notifications"); }}
-                  className="w-full text-center text-xs font-medium text-coral-500 hover:text-coral-600 transition-colors"
-                >
-                  View all notifications →
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+      <div className="portal-theme" style={{ ["--portal-accent" as string]: accent }}>
+        <PageLoader />
       </div>
     );
   }
 
-  /* ── Shared nav content (used in both desktop sidebar and mobile drawer) ── */
-  function NavContent({ onLinkClick, showBell = false }: { onLinkClick?: () => void; showBell?: boolean }) {
-    return (
-      <>
-        {/* Wordmark */}
-        <div className="mb-8 px-3 flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/divyash-logo-everywhere.png"
-            alt="Divyash Digital"
-            className="h-10 w-auto flex-shrink-0 object-contain lg:h-11"
-          />
-          <div className="min-w-0">
-            <p className="font-display text-base font-bold leading-tight text-white">
-              Divyash Digital
-            </p>
-            <p className="mt-0.5 text-[11px] leading-tight text-white/40">
-              {isPortalClient ? "Client portal" : "Agency portal"}
-            </p>
-          </div>
-        </div>
+  const role = user.role;
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.visibleTo || item.visibleTo.includes(role)),
+    }))
+    .filter((group) => group.items.length > 0);
 
-        {/* Nav links */}
-        <nav className="flex flex-col gap-0.5 flex-1">
-          {navItems.filter((item) => !item.visibleTo || item.visibleTo.includes(user!.role)).map((item) => {
-            const active =
-              pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onLinkClick}
-                className={`flex items-center rounded-lg border-l-2 py-2.5 pl-[10px] pr-3 text-sm transition-colors motion-reduce:transition-none ${
-                  active
-                    ? "border-coral-500 bg-white/[0.08] font-semibold text-white"
-                    : "border-transparent text-white/50 hover:bg-white/[0.05] hover:text-white"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* User + theme + bell + sign out */}
-        <div className="border-t border-white/[0.08] pt-4 space-y-2">
-          <div className="px-3 flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-white truncate">{user!.name}</p>
-              <p className="text-[10px] text-white/40 capitalize">
-                {user!.role.toLowerCase().replace(/_/g, " ")}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {showBell && <BellButton align="left" openUp />}
-              <ThemeToggle className="border-white/10 bg-white/[0.06] text-white/40 hover:border-coral-500 hover:text-coral-400" />
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-sm text-white/40 transition-all hover:border-coral-500/40 hover:bg-coral-500/[0.07] hover:text-coral-400 motion-reduce:transition-none"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            Sign out
-          </button>
-        </div>
-      </>
-    );
+  // Flatten for the palette, title row and breadcrumb
+  const flatEntries: { label: string; href: string; group?: string; icon?: IconName; parent?: string; shellHeader?: boolean; subtitle?: string }[] = [];
+  for (const group of visibleGroups) {
+    for (const item of group.items) {
+      // A parent with children isn't its own destination (and often shares an
+      // href with its first child), so only its children are listed.
+      if (!item.children?.length) {
+        flatEntries.push({
+          label: item.label,
+          href: item.href,
+          group: group.heading,
+          icon: item.icon,
+          shellHeader: item.shellHeader,
+          subtitle: item.subtitle,
+        });
+      }
+      for (const child of item.children ?? []) {
+        if (child.visibleTo && !child.visibleTo.includes(role)) continue;
+        flatEntries.push({
+          label: child.label,
+          href: child.href,
+          group: group.heading,
+          icon: item.icon,
+          parent: item.label,
+          shellHeader: child.shellHeader,
+          subtitle: child.subtitle,
+        });
+      }
+    }
   }
 
-  return (
-    <div className="flex min-h-screen">
+  // Deepest matching entry wins, so /admin/tasks/list beats /admin/tasks
+  const activeEntry = flatEntries
+    .filter((e) => isActive(pathname, e.href))
+    .sort((a, b) => b.href.length - a.href.length)[0];
 
-      {/* ── Desktop sidebar ──────────────────────────────────────────────────── */}
-      <aside className="hidden lg:flex w-60 flex-shrink-0 flex-col bg-[#1B1830] px-3 py-5 border-r border-white/[0.06]">
-        <NavContent showBell />
+  const paletteEntries: PaletteEntry[] = flatEntries.map((e) => ({
+    label: e.parent ? `${e.parent} › ${e.label}` : e.label,
+    href: e.href,
+    group: e.group,
+    icon: e.icon,
+  }));
+
+  const sidebarInner = (mobile: boolean) => (
+    <>
+      {/* Logo */}
+      <div className={cn("flex items-center gap-3 px-4 pt-6", collapsed && !mobile && "justify-center px-0")}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/divyash-logo-everywhere.png"
+          alt="Divyash Digital"
+          className="h-9 w-auto flex-shrink-0 object-contain"
+        />
+        {(!collapsed || mobile) && (
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold leading-tight text-[var(--ink)]">Divyash Digital</p>
+            <p className="mt-0.5 text-[11px] leading-tight text-[var(--muted)]">{VARIANT_LABEL[variant]}</p>
+          </div>
+        )}
+        {!mobile && (
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="flex-shrink-0 rounded-md p-1.5 text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <Icon name="sidebar" size={18} />
+          </button>
+        )}
+      </div>
+
+      <nav className={cn("mt-7 flex-1 space-y-6 overflow-y-auto px-4 pb-6", collapsed && !mobile && "px-3")}>
+        {visibleGroups.map((group, gi) => (
+          <div key={group.heading ?? gi}>
+            {group.heading && (!collapsed || mobile) && (
+              <p className="mb-3 px-3 text-xs uppercase tracking-wide text-[var(--muted)]">{group.heading}</p>
+            )}
+            <div className="space-y-1">
+              {group.items.map((item) => (
+                <NavRow
+                  key={item.href}
+                  item={item}
+                  collapsed={collapsed && !mobile}
+                  role={role}
+                  onNavigate={mobile ? () => setDrawerOpen(false) : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
+    </>
+  );
+
+  const headerButtonCls =
+    "flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-2)] shadow-portal-xs transition-colors hover:text-[var(--ink)]";
+
+  return (
+    <div
+      className="portal-theme flex h-screen overflow-hidden"
+      style={{ ["--portal-accent" as string]: accent }}
+    >
+      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
+      <aside
+        className={cn(
+          "hidden flex-shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)] transition-[width] duration-300 ease-in-out lg:flex",
+          collapsed ? "w-[76px]" : "w-[270px]"
+        )}
+      >
+        {sidebarInner(false)}
       </aside>
 
-      {/* ── Mobile overlay + drawer ──────────────────────────────────────────── */}
+      {/* ── Mobile drawer ───────────────────────────────────────────── */}
       {drawerOpen && (
-        /* Backdrop */
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={() => setDrawerOpen(false)}
           aria-hidden
         />
       )}
-
-      {/* Drawer panel */}
       <div
-        ref={drawerRef}
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-[#1B1830] px-3 py-5 border-r border-white/[0.06] transition-transform duration-300 ease-in-out lg:hidden ${
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-[var(--border)] bg-[var(--surface)] transition-transform duration-300 ease-in-out lg:hidden",
           drawerOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        )}
         aria-label="Navigation drawer"
       >
-        {/* Close button */}
         <button
           onClick={() => setDrawerOpen(false)}
-          className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-lg text-white/40 hover:text-white transition-colors"
+          className="absolute right-3 top-5 rounded-md p-1.5 text-[var(--muted)] hover:text-[var(--ink)]"
           aria-label="Close menu"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <Icon name="close" size={18} />
         </button>
-        <NavContent onLinkClick={() => setDrawerOpen(false)} />
+        {sidebarInner(true)}
       </div>
 
-      {/* ── Main content area ─────────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col min-w-0">
-
-        {/* ── Mobile top bar ─────────────────────────────────────────────────── */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/[0.06] bg-[#1B1830] px-4 lg:hidden">
-          {/* Hamburger */}
+      {/* ── Main column ─────────────────────────────────────────────── */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--header-bg)] px-3 py-3 lg:px-5">
+          {/* Hamburger (mobile) */}
           <button
             onClick={() => setDrawerOpen(true)}
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-white/50 hover:text-white transition-colors"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-[var(--ink-2)] hover:text-[var(--ink)] lg:hidden"
             aria-label="Open menu"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
+            <Icon name="menu" />
           </button>
 
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/divyash-logo-everywhere.png"
-              alt="Divyash Digital"
-              className="h-8 w-auto flex-shrink-0 object-contain sm:h-9"
-            />
-            <p className="truncate font-display text-sm font-bold leading-tight text-white">
-              Divyash Digital
-            </p>
+          {/* ⌘K search trigger */}
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--muted)] transition-colors hover:text-[var(--ink)] sm:max-w-xs"
+          >
+            <Icon name="search" size={18} className="flex-shrink-0" />
+            <span className="flex-1 truncate text-left">Search pages…</span>
+            <kbd className="hidden flex-shrink-0 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 text-[11px] font-medium sm:block">
+              ⌘K
+            </kbd>
+          </button>
+
+          <div className="ml-auto flex flex-shrink-0 items-center gap-2.5">
+            <ThemeToggle className={headerButtonCls} />
+
+            {/* Bell */}
+            <div data-bell className="relative">
+              <button
+                onClick={() => setBellOpen((o) => !o)}
+                className={cn(headerButtonCls, "relative")}
+                aria-label="Notifications"
+              >
+                <Icon name="bell" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+                )}
+              </button>
+
+              {bellOpen && (
+                <div className="absolute right-0 top-12 z-50 w-80 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-portal-lg">
+                  <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+                    <p className="text-sm font-semibold text-[var(--ink)]">Notifications</p>
+                    {unreadCount > 0 && (
+                      <button onClick={markAllRead} className="text-xs font-medium text-[var(--portal-accent)]">
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <p className="px-4 py-8 text-center text-sm text-[var(--muted)]">No notifications</p>
+                    ) : (
+                      notifications.slice(0, 20).map((n) => (
+                        <button
+                          key={n.id}
+                          onClick={() => markRead(n.id, n.link)}
+                          className={cn(
+                            "w-full border-b border-[var(--border-subtle)] px-4 py-3 text-left transition-colors last:border-0 hover:bg-[var(--surface-2)]",
+                            n.isRead && "opacity-60"
+                          )}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <span
+                              className={cn(
+                                "mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full",
+                                n.isRead ? "bg-transparent" : "bg-[var(--portal-accent)]"
+                              )}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-2 text-xs leading-snug text-[var(--ink)]">{n.message}</p>
+                              <p className="mt-0.5 text-[10px] text-[var(--muted)]">{timeAgo(n.createdAt)}</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  {variant === "admin" && (
+                    <div className="border-t border-[var(--border)] px-4 py-2.5">
+                      <button
+                        onClick={() => {
+                          setBellOpen(false);
+                          router.push("/admin/notifications");
+                        }}
+                        className="w-full text-center text-xs font-medium text-[var(--portal-accent)]"
+                      >
+                        View all notifications →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* User menu */}
+            <div data-user-menu className="relative">
+              <button
+                onClick={() => setUserMenuOpen((o) => !o)}
+                className="flex items-center gap-2.5 rounded-lg p-0.5 transition-colors hover:bg-[var(--surface-2)]"
+              >
+                <Avatar person={{ name: user.name, photoUrl: user.photoUrl }} size="md" rounded="lg" />
+                <span className="hidden text-sm font-medium text-[var(--ink)] sm:block">{user.name}</span>
+                <Icon name="chevronDown" size={16} className="hidden text-[var(--muted)] sm:block" />
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 shadow-portal-lg">
+                  <div className="border-b border-[var(--border)] px-3 py-2.5">
+                    <p className="truncate text-sm font-semibold text-[var(--ink)]">{user.name}</p>
+                    <p className="truncate text-xs capitalize text-[var(--muted)]">{humanRole(role)}</p>
+                  </div>
+                  {profileHref && (
+                    <Link
+                      href={profileHref}
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[var(--ink-2)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
+                    >
+                      <Icon name="profile" size={18} className="text-[var(--muted)]" />
+                      My profile
+                    </Link>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[var(--ink-2)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
+                  >
+                    <Icon name="logout" size={18} className="text-[var(--muted)]" />
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-
-          {/* Current page label */}
-          <p className="hidden sm:block text-xs text-white/40 truncate flex-shrink-0">
-            {navItems.find((n) => pathname === n.href || pathname.startsWith(n.href + "/"))?.label ?? ""}
-          </p>
-
-          <BellButton />
-          <ThemeToggle className="border-white/10 bg-white/[0.06] text-white/40 hover:border-coral-500 hover:text-coral-400 flex-shrink-0" />
         </header>
 
-        {/* ── Page content ───────────────────────────────────────────────────── */}
-        <main className="flex-1 overflow-auto bg-[var(--page-bg)] p-4 lg:p-6">
-          <ToastProvider>
-            {children}
-          </ToastProvider>
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-[1536px] px-3 pb-10 pt-6 lg:px-5">
+            {activeEntry?.shellHeader && (
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 px-1">
+                <div className="min-w-0">
+                  <h1 className="mb-1 text-[28px] font-medium leading-8 text-[var(--ink)]">
+                    {activeEntry.label}
+                  </h1>
+                  {activeEntry.subtitle && (
+                    <p className="text-sm leading-5 text-[var(--muted)]">{activeEntry.subtitle}</p>
+                  )}
+                </div>
+                {!activeEntry.subtitle && (
+                  <ol className="flex items-center gap-2 text-sm font-medium">
+                    <li className="text-[var(--muted)]">Home</li>
+                    {activeEntry.parent && (
+                      <>
+                        <li className="text-[var(--muted)]" aria-hidden>/</li>
+                        <li className="text-[var(--muted)]">{activeEntry.parent}</li>
+                      </>
+                    )}
+                    <li className="text-[var(--muted)]" aria-hidden>/</li>
+                    <li className="text-[var(--ink)]">{activeEntry.label}</li>
+                  </ol>
+                )}
+              </div>
+            )}
+            <ToastProvider>{children}</ToastProvider>
+          </div>
         </main>
       </div>
+
+      <CommandPalette entries={paletteEntries} open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   );
+}
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }

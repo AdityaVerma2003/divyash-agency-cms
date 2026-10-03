@@ -45,5 +45,7 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
 }
 
 export function homePathForRole(role: AuthUser["role"]) {
-  return role === "CLIENT" ? "/client/dashboard" : "/admin/dashboard";
+  if (role === "CLIENT") return "/client/dashboard";
+  if (role === "ACCOUNT_MANAGER") return "/workspace/dashboard";
+  return "/admin/dashboard";
 }

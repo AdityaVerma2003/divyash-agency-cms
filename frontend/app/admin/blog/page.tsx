@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
+import PageLoader from "@/components/PageLoader";
 import type { BlogPost } from "@/types";
 
 type StatusFilter = "" | "DRAFT" | "PUBLISHED";
@@ -100,9 +101,7 @@ export default function AdminBlogPage() {
 
       {/* List */}
       {!posts ? (
-        <div className="space-y-3 animate-pulse">
-          {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-[var(--border)] opacity-40" />)}
-        </div>
+        <PageLoader fullScreen={false} />
       ) : posts.length === 0 ? (
         <div className="card py-16 text-center">
           <p className="text-sm font-semibold text-[var(--ink)]">No posts yet</p>

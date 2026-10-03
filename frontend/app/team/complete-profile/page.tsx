@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { getAccessToken, fetchCurrentUser } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
-
-import { DESIGNATIONS } from "@/lib/designations";
+import BankDetailsFields from "@/components/BankDetailsFields";
+import { EMPTY_BANK_DETAILS, isBankDetailsFilled, parseBankDetails, serializeBankDetails, type BankDetails } from "@/lib/bankDetails";
 
 const inputCls =
   "w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none focus:border-coral-500 transition-colors";
@@ -18,7 +18,7 @@ export default function CompleteProfilePage() {
   const [mobile, setMobile] = useState("");
   const [address, setAddress] = useState("");
   const [designation, setDesignation] = useState("");
-  const [bankDetails, setBankDetails] = useState("");
+  const [bankDetails, setBankDetails] = useState<BankDetails>(EMPTY_BANK_DETAILS);
   const [socialLinks, setSocialLinks] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -38,7 +38,8 @@ export default function CompleteProfilePage() {
       if (u.designation) setDesignation(u.designation);
       if (u.mobile) setMobile(u.mobile);
       if (u.address) setAddress(u.address);
-      if (u.bankDetails) setBankDetails(u.bankDetails);
+      const parsed = parseBankDetails(u.bankDetails);
+      if (parsed) setBankDetails(parsed);
       if (u.socialLinks) setSocialLinks(u.socialLinks);
       if (u.photoUrl) setPhotoUrl(u.photoUrl);
     }).catch(() => router.push("/login"));
@@ -70,15 +71,15 @@ export default function CompleteProfilePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!mobile.trim() || !address.trim() || !designation) {
-      toastError("Required fields", "Mobile, address and designation are required to complete your profile.");
+    if (!mobile.trim() || !address.trim()) {
+      toastError("Required fields", "Mobile and address are required to complete your profile.");
       return;
     }
     if (!photoUrl) {
       toastError("Photo required", "Please upload a profile photo — it appears on the public team page.");
       return;
     }
-    if (!bankDetails.trim()) {
+    if (!isBankDetailsFilled(bankDetails)) {
       toastError("Bank details required", "Bank details are needed to process your payouts.");
       return;
     }
@@ -88,8 +89,7 @@ export default function CompleteProfilePage() {
       await api.patch(`/users/${userId}`, {
         mobile: mobile.trim(),
         address: address.trim(),
-        designation,
-        bankDetails: bankDetails.trim(),
+        bankDetails: serializeBankDetails(bankDetails),
         ...(designation === "Influencer" && socialLinks.trim() && { socialLinks: socialLinks.trim() }),
       }, getAccessToken());
       success("Profile complete", "Welcome to the team!");
@@ -141,12 +141,12 @@ export default function CompleteProfilePage() {
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                Designation <span className="text-danger">*</span>
+                Designation
               </label>
-              <select value={designation} onChange={(e) => setDesignation(e.target.value)} className={inputCls} required>
-                <option value="">Select your role…</option>
-                {DESIGNATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <p className={`${inputCls} cursor-default`}>
+                {designation || <span className="italic text-[var(--muted)]">Not set — contact your Super Admin</span>}
+              </p>
+              <p className="mt-1 text-[11px] text-[var(--muted)]">Set by your Super Admin when you were invited.</p>
             </div>
 
             <div>
@@ -165,9 +165,9 @@ export default function CompleteProfilePage() {
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                Bank details <span className="text-xs font-normal normal-case">(optional — for salary processing)</span>
+                Bank details <span className="text-xs font-normal normal-case">(required — for salary processing)</span>
               </label>
-              <textarea rows={3} value={bankDetails} onChange={(e) => setBankDetails(e.target.value)} className={`${inputCls} resize-none`} placeholder="Account number, IFSC, bank name…" />
+              <BankDetailsFields value={bankDetails} onChange={setBankDetails} required />
             </div>
 
             {designation === "Influencer" && (

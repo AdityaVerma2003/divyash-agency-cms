@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
+import PageLoader from "@/components/PageLoader";
 import type { Invoice } from "@/types";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
@@ -60,27 +61,6 @@ function StatusBadge({ status }: { status: Invoice["status"] }) {
   const cfg = INV_STATUS[status];
   return (
     <span className={`badge whitespace-nowrap ${cfg.cls}`}>{cfg.label}</span>
-  );
-}
-
-/* ── Loading skeleton ────────────────────────────────────────────────────── */
-function LoadingSkeleton() {
-  return (
-    <div className="space-y-3 animate-pulse">
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="h-4 w-28 rounded-md bg-[var(--border)] opacity-60" />
-            <div className="h-5 w-16 rounded-full bg-[var(--border)] opacity-40" />
-          </div>
-          <div className="h-7 w-24 rounded-md bg-[var(--border)] opacity-50 mb-2" />
-          <div className="h-3 w-40 rounded-md bg-[var(--border)] opacity-30" />
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -153,7 +133,7 @@ export default function ClientInvoicesPage() {
       </div>
 
       {/* ── Loading ─────────────────────────────────────────────────────── */}
-      {filtered === null && <LoadingSkeleton />}
+      {filtered === null && <PageLoader fullScreen={false} />}
 
       {/* ── Empty state ─────────────────────────────────────────────────── */}
       {filtered !== null && filtered.length === 0 && (

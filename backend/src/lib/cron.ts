@@ -3,6 +3,8 @@ import { Role, SubscriptionStatus } from "@prisma/client";
 import { generateMonthlyInvoices, sendInvoiceReminders } from "./billing";
 import { prisma } from "./prisma";
 import { notify, notifyAdmins } from "./notify";
+import { reportTypeForCategory, reportTypeFromEnum, hasEntryForMonth } from "./reportTypes";
+import { monthStart } from "./monthLock";
 
 async function checkContractsEndingSoon() {
   const now = new Date();
@@ -35,6 +37,66 @@ async function checkContractsEndingSoon() {
 
   if (expiring.length > 0) {
     console.log(`[cron] Sent ${expiring.length} contract-expiry notification(s)`);
+  }
+}
+
+/** Reminds team members, once a week, which assigned clients still need a report entry this month. */
+async function checkMissingReports() {
+  const now = new Date();
+  const thisMonth = monthStart(now);
+  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+
+  const members = await prisma.user.findMany({
+    where: { role: Role.ACCOUNT_MANAGER, reportTypes: { isEmpty: false } },
+    select: {
+      id: true,
+      reportTypes: true,
+      clientAssignments: {
+        select: {
+          client: {
+            select: {
+              id: true,
+              companyName: true,
+              clientServices: {
+                where: { status: SubscriptionStatus.ACTIVE },
+                select: { id: true, service: { select: { category: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  let remindersSent = 0;
+  for (const member of members) {
+    const myTypes = new Set(member.reportTypes.map(reportTypeFromEnum));
+    const missing: string[] = [];
+
+    for (const assignment of member.clientAssignments) {
+      for (const cs of assignment.client.clientServices) {
+        const type = reportTypeForCategory(cs.service.category);
+        if (!type || !myTypes.has(type)) continue;
+
+        const hasEntry = await hasEntryForMonth(type, cs.id, thisMonth, nextMonth);
+        if (!hasEntry) missing.push(assignment.client.companyName);
+      }
+    }
+
+    if (missing.length > 0) {
+      const unique = [...new Set(missing)];
+      await notify(
+        member.id,
+        "REPORT_REMINDER",
+        `Reports still due this month for: ${unique.slice(0, 5).join(", ")}${unique.length > 5 ? ` +${unique.length - 5} more` : ""}`,
+        "/workspace/dashboard"
+      ).catch(() => undefined);
+      remindersSent++;
+    }
+  }
+
+  if (remindersSent > 0) {
+    console.log(`[cron] Sent ${remindersSent} missing-report reminder(s)`);
   }
 }
 
@@ -75,5 +137,19 @@ export function startCron() {
     }
   });
 
-  console.log("[cron] Jobs scheduled: invoices (1st of month, 9am) · reminders (daily, 8am) · contracts (daily, 8:05am)");
+  // 9:00 AM every Monday — remind team members of missing report entries.
+  // Weekly (not daily) is the natural dedup — no notification-idempotency
+  // table needed since it simply won't re-fire until next Monday.
+  cron.schedule("0 9 * * 1", async () => {
+    console.log("[cron] Checking for missing report entries…");
+    try {
+      await checkMissingReports();
+    } catch (err) {
+      console.error("[cron] Missing-report check failed:", err);
+    }
+  });
+
+  console.log(
+    "[cron] Jobs scheduled: invoices (1st of month, 9am) · reminders (daily, 8am) · contracts (daily, 8:05am) · missing reports (Mondays, 9am)"
+  );
 }

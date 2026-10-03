@@ -31,9 +31,12 @@ const campaignInputSchema = z.object({
   conversions: z.number().int().min(0).default(0),
 });
 
-// GET /api/campaigns?clientServiceId=...
+// GET /api/campaigns?clientServiceId=... (legacy, retired as of the per-service reporting system --
+// kept so historical PDF data stays readable). SUPER_ADMIN or the owning
+// CLIENT only.
 router.get(
   "/",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   asyncHandler(async (req, res) => {
     const clientServiceId = req.query.clientServiceId as string | undefined;
     if (!clientServiceId) throw new ApiError(400, "clientServiceId query param is required");
@@ -55,7 +58,7 @@ router.get(
 // POST /api/campaigns — admin only
 router.post(
   "/",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const data = campaignInputSchema.parse(req.body);
     const campaign = await prisma.campaign.create({ data });
@@ -66,7 +69,7 @@ router.post(
 // DELETE /api/campaigns/:id — admin only
 router.delete(
   "/:id",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const campaign = await prisma.campaign.findUnique({ where: { id: req.params.id } });
     if (!campaign) throw ApiError.notFound("Campaign not found");

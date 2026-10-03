@@ -5,7 +5,7 @@ import PDFDocument from "pdfkit";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/apiError";
 import { asyncHandler } from "../utils/asyncHandler";
-import { authenticate, scopeToOwnClient } from "../middleware/auth.middleware";
+import { authenticate, authorize, scopeToOwnClient } from "../middleware/auth.middleware";
 
 const router = Router();
 router.use(authenticate);
@@ -36,8 +36,11 @@ function fmtMonth(d: Date) {
 }
 
 // GET /api/reports/:clientId/pdf?month=YYYY-MM  (defaults to previous month)
+// This PDF contains a billing summary KPI grid, so team members must never
+// reach it — SUPER_ADMIN, or the owning CLIENT for their own report.
 router.get(
   "/:clientId/pdf",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   scopeToOwnClient,
   asyncHandler(async (req, res) => {
     const { clientId } = req.params;

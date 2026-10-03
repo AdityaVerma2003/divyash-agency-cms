@@ -20,9 +20,12 @@ const postInputSchema = z.object({
   shares: z.number().int().min(0).default(0),
 });
 
-// GET /api/posts?clientServiceId=...
+// GET /api/posts?clientServiceId=... (legacy, retired as of the per-service reporting system --
+// kept so historical PDF data stays readable). SUPER_ADMIN or the owning
+// CLIENT only.
 router.get(
   "/",
+  authorize(Role.SUPER_ADMIN, Role.CLIENT),
   asyncHandler(async (req, res) => {
     const clientServiceId = req.query.clientServiceId as string | undefined;
     if (!clientServiceId) throw new ApiError(400, "clientServiceId query param is required");
@@ -44,7 +47,7 @@ router.get(
 // POST /api/posts — admin only
 router.post(
   "/",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const data = postInputSchema.parse(req.body);
     const post = await prisma.post.create({
@@ -57,7 +60,7 @@ router.post(
 // DELETE /api/posts/:id — admin only
 router.delete(
   "/:id",
-  authorize(Role.SUPER_ADMIN, Role.ACCOUNT_MANAGER),
+  authorize(Role.SUPER_ADMIN),
   asyncHandler(async (req, res) => {
     const post = await prisma.post.findUnique({ where: { id: req.params.id } });
     if (!post) throw ApiError.notFound("Post not found");

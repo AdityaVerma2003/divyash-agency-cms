@@ -20,6 +20,7 @@ interface CaseStudy {
 interface PublicClient {
   id: string;
   companyName: string;
+  intro?: string | null;
   caseStudy: { id: string; title?: string | null; pdfUrl: string } | null;
 }
 
@@ -173,6 +174,10 @@ function RealClientCard({ client, delay }: { client: PublicClient; delay: string
         <p className="font-display text-base font-semibold leading-snug text-[var(--ink)]">{client.companyName}</p>
       </div>
 
+      {client.intro && (
+        <p className="relative -mt-1 text-sm leading-relaxed text-[var(--muted)]">{client.intro}</p>
+      )}
+
       {client.caseStudy ? (
         <a
           href={client.caseStudy.pdfUrl}
@@ -181,12 +186,11 @@ function RealClientCard({ client, delay }: { client: PublicClient; delay: string
           onClick={(e) => e.stopPropagation()}
           className="relative mt-auto inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--ink)] hover:border-coral-500 hover:text-coral-500 transition-colors"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Download Case Study
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+  <circle cx="12" cy="12" r="3" />
+</svg>
+          View Case Study
         </a>
       ) : (
         <span className="relative mt-auto inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] opacity-50 cursor-default select-none">
@@ -220,6 +224,16 @@ export default function WorkPage() {
       (cs) => cs.clientName.toLowerCase().includes(lower) || lower.includes(cs.clientName.toLowerCase())
     );
   }
+
+  // Some DB clients exist purely so the admin can upload a case study that
+  // gets fuzzy-matched into the curated PORTFOLIO grid above (see
+  // findCaseStudy) — those shouldn't also render a second time down here.
+  const otherClients = realClients.filter((client) => {
+    const lower = client.companyName.toLowerCase();
+    return !PORTFOLIO.some(
+      (item) => item.name.toLowerCase().includes(lower) || lower.includes(item.name.toLowerCase())
+    );
+  });
 
   return (
     <div className="min-h-screen bg-[var(--page-bg)] text-[var(--ink)]">
@@ -279,7 +293,7 @@ export default function WorkPage() {
       </section>
 
       {/* Real, portal-onboarded clients opted into public visibility */}
-      {realClients.length > 0 && (
+      {otherClients.length > 0 && (
         <section className="mx-auto max-w-6xl px-5 pb-16 md:pb-24">
           <div className="mb-10">
             <p className="section-label mb-3">Also growing with us</p>
@@ -288,7 +302,7 @@ export default function WorkPage() {
             </h2>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {realClients.map((client, i) => (
+            {otherClients.map((client, i) => (
               <RealClientCard key={client.id} client={client} delay={`reveal-delay-${(i % 6) + 1}`} />
             ))}
           </div>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { useToast } from "@/components/Toast";
+import PageLoader from "@/components/PageLoader";
 import type { AuditLogPage, AuditLog } from "@/types";
 
 const ENTITY_OPTIONS = [
@@ -88,9 +89,7 @@ export default function AuditLogPage() {
 
       {/* Table */}
       {!data ? (
-        <div className="space-y-3 animate-pulse">
-          {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 rounded-xl bg-[var(--border)] opacity-40" />)}
-        </div>
+        <PageLoader fullScreen={false} />
       ) : data.logs.length === 0 ? (
         <div className="card py-16 text-center">
           <p className="text-sm font-semibold text-[var(--ink)]">No audit events yet</p>

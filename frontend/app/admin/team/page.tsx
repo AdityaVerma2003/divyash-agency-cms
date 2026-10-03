@@ -6,6 +6,8 @@ import { getAccessToken, fetchCurrentUser } from "@/lib/auth";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { DESIGNATIONS } from "@/lib/designations";
+import { parseBankDetails } from "@/lib/bankDetails";
+import PageLoader from "@/components/PageLoader";
 
 interface TeamMember {
   id: string;
@@ -18,6 +20,8 @@ interface TeamMember {
   designation?: string | null;
   createdAt: string;
   managedClients?: { id: string; companyName: string }[];
+  /** Only present in the API response when the viewer is SUPER_ADMIN */
+  bankDetails?: string | null;
 }
 
 interface ClientOption {
@@ -73,6 +77,7 @@ export default function AdminTeamPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmMember, setConfirmMember] = useState<TeamMember | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [bankDetailsMember, setBankDetailsMember] = useState<TeamMember | null>(null);
 
   function loadMembers() {
     api
@@ -202,9 +207,7 @@ export default function AdminTeamPage() {
 
       {/* Card grid */}
       {!members ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-pulse">
-          {[1, 2, 3].map((i) => <div key={i} className="h-40 rounded-2xl bg-[var(--border)] opacity-40" />)}
-        </div>
+        <PageLoader fullScreen={false} />
       ) : members.length === 0 ? (
         <div className="card py-16 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--muted)]">
@@ -278,6 +281,12 @@ export default function AdminTeamPage() {
                   {currentUserRole === "SUPER_ADMIN" && (
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => setBankDetailsMember(m)}
+                        className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)] hover:border-coral-500 hover:text-coral-500 transition-all"
+                      >
+                        Bank details
+                      </button>
+                      <button
                         onClick={() => openEditAssignments(m)}
                         className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)] hover:border-coral-500 hover:text-coral-500 transition-all"
                       >
@@ -314,6 +323,41 @@ export default function AdminTeamPage() {
             >
               Remove member
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Bank details modal (Super Admin only) */}
+      {bankDetailsMember && (
+        <Modal title={`Bank details — ${bankDetailsMember.name}`} onClose={() => setBankDetailsMember(null)}>
+          {(() => {
+            const d = parseBankDetails(bankDetailsMember.bankDetails);
+            if (!d) {
+              return (
+                <p className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] px-3 py-3 text-sm text-[var(--muted)]">
+                  Bank details not added yet.
+                </p>
+              );
+            }
+            const rows: [string, string][] = [
+              ["Account holder name", d.accountHolderName],
+              ["Bank name", d.bankName],
+              ["Account number", d.accountNumber],
+              ["IFSC code", d.ifsc],
+            ];
+            return (
+              <div className="space-y-3">
+                {rows.map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-xs text-[var(--muted)]">{label}</p>
+                    <p className="text-sm font-medium text-[var(--ink)]">{value || <span className="italic text-[var(--muted)]">Not provided</span>}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          <div className="mt-5 flex justify-end">
+            <button type="button" onClick={() => setBankDetailsMember(null)} className="btn btn-ghost">Close</button>
           </div>
         </Modal>
       )}

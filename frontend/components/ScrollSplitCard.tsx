@@ -142,7 +142,7 @@ export function ScrollSplitCard({
             className="absolute top-[20%] left-0 right-0 text-center"
             style={{ opacity: startTextOpacity, y: startTextY }}
           >
-            <p className="text-sm font-medium uppercase tracking-widest text-white/60">{hint}</p>
+            <p className="text-xl font-bold uppercase tracking-widest text-white/80">{hint}</p>
           </motion.div>
 
           <motion.div
@@ -181,13 +181,13 @@ export function ScrollSplitCard({
               className="flex flex-col gap-3 rounded-2xl border border-white/10 p-5"
               style={{ backgroundColor: card.bgColor, color: card.textColor }}
             >
-              {card.icon && <div className="opacity-90">{card.icon}</div>}
+              {card.icon && <div className="opacity-90 text-center">{card.icon}</div>}
               <div>{card.title}</div>
-              <p className="text-xs leading-relaxed opacity-85">{card.description}</p>
+              <p className="text-lg leading-relaxed opacity-85">{card.description}</p>
             </div>
           ))}
         </div>
-        {endingText && <div className="mt-8 text-center">{endingText}</div>}
+        {endingText && <div className="mt-6 text-center">{endingText}</div>}
       </div>
     </>
   );

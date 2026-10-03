@@ -8,7 +8,8 @@ import { getAccessToken } from "@/lib/auth";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import PhoneInput, { validatePhone } from "@/components/PhoneInput";
-import type { Client, ClientService, Invoice, Service, Post, Campaign, Lead } from "@/types";
+import PageLoader from "@/components/PageLoader";
+import type { Client, ClientService, Invoice, Service } from "@/types";
 
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
@@ -110,6 +111,7 @@ interface EditForm {
   phone: string;
   gstin: string;
   address: string;
+  intro: string;
   assignedUserIds: string[];
   showOnPublicSite: boolean;
 }
@@ -122,6 +124,7 @@ function toEditForm(client: Client): EditForm {
     phone: client.phone ?? "",
     gstin: client.gstin ?? "",
     address: client.address ?? "",
+    intro: client.intro ?? "",
     assignedUserIds: client.assignments?.map((a) => a.user.id) ?? [],
     showOnPublicSite: client.showOnPublicSite,
   };
@@ -177,6 +180,7 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
         ...(form.phone.trim() && { phone: form.phone.trim() }),
         ...(form.gstin.trim() && { gstin: form.gstin.trim() }),
         ...(form.address.trim() && { address: form.address.trim() }),
+        ...(form.intro.trim() && { intro: form.intro.trim() }),
         showOnPublicSite: form.showOnPublicSite,
       };
       const updated = await api.patch<Client>(`/clients/${client.id}`, payload, getAccessToken());
@@ -305,6 +309,18 @@ function EditClientModal({ client, onClose, onSaved }: EditClientModalProps) {
               Multiple team members can work on the same client.
             </span>
           </div>
+
+          <label className="block text-sm sm:col-span-2">
+            <span className="mb-1 block text-[var(--muted)]">Public intro (shown on the website)</span>
+            <textarea
+              rows={2}
+              maxLength={280}
+              placeholder="A short one-line description of this client, e.g. what they do…"
+              className={`${inp("intro")} resize-none`}
+              {...field("intro")}
+            />
+            <span className="mt-1 block text-right text-xs text-[var(--muted)]">{form.intro.length}/280</span>
+          </label>
 
           <label className="flex items-start gap-2.5 text-sm sm:col-span-2">
             <input
@@ -816,592 +832,6 @@ function ServiceStatusModal({ sub, onClose, onDone }: ServiceStatusModalProps) {
   );
 }
 
-// ─── Posts section ────────────────────────────────────────────────────────────
-
-interface AddPostForm {
-  platform: string;
-  postUrl: string;
-  publishedAt: string;
-  reach: string;
-  likes: string;
-  comments: string;
-  shares: string;
-}
-
-const EMPTY_POST_FORM: AddPostForm = {
-  platform: "Instagram",
-  postUrl: "",
-  publishedAt: "",
-  reach: "0",
-  likes: "0",
-  comments: "0",
-  shares: "0",
-};
-
-interface AddPostModalProps {
-  clientServiceId: string;
-  onClose: () => void;
-  onAdded: () => void;
-}
-
-function AddPostModal({ clientServiceId, onClose, onAdded }: AddPostModalProps) {
-  const { error: toastError, success } = useToast();
-  const [form, setForm] = useState<AddPostForm>(EMPTY_POST_FORM);
-  const [errors, setErrors] = useState<Partial<Record<keyof AddPostForm, string>>>({});
-  const [submitting, setSubmitting] = useState(false);
-
-  function validate(): boolean {
-    const e: Partial<Record<keyof AddPostForm, string>> = {};
-    if (!form.publishedAt) e.publishedAt = "Required";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!validate()) return;
-    setSubmitting(true);
-    try {
-      await api.post(
-        "/posts",
-        {
-          clientServiceId,
-          platform: form.platform,
-          ...(form.postUrl.trim() && { postUrl: form.postUrl.trim() }),
-          publishedAt: form.publishedAt,
-          reach: Number(form.reach) || 0,
-          likes: Number(form.likes) || 0,
-          comments: Number(form.comments) || 0,
-          shares: Number(form.shares) || 0,
-        },
-        getAccessToken()
-      );
-      success("Post added");
-      onAdded();
-    } catch (err) {
-      toastError("Failed to add post", err instanceof Error ? err.message : undefined);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function setField(key: keyof AddPostForm, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
-  }
-
-  return (
-    <Modal title="Add post" onClose={onClose}>
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="block text-sm">
-            <span className="mb-1 block text-[var(--muted)]">Platform</span>
-            <select className={INPUT_CLS} value={form.platform} onChange={(e) => setField("platform", e.target.value)}>
-              <option>Instagram</option>
-              <option>Facebook</option>
-              <option>LinkedIn</option>
-              <option>Twitter</option>
-              <option>YouTube</option>
-              <option>Other</option>
-            </select>
-          </label>
-
-          <label className="block text-sm">
-            <span className="mb-1 block text-[var(--muted)]">
-              Published date <span className="text-danger">*</span>
-            </span>
-            <input
-              type="date"
-              className={`${INPUT_CLS} ${errors.publishedAt ? "border-danger" : ""}`}
-              value={form.publishedAt}
-              onChange={(e) => setField("publishedAt", e.target.value)}
-            />
-            {errors.publishedAt && <p className="mt-1 text-xs text-danger">{errors.publishedAt}</p>}
-          </label>
-
-          <label className="block text-sm sm:col-span-2">
-            <span className="mb-1 block text-[var(--muted)]">Post URL (optional)</span>
-            <input type="text" className={INPUT_CLS} placeholder="https://…" value={form.postUrl} onChange={(e) => setField("postUrl", e.target.value)} />
-          </label>
-
-          {(["reach", "likes", "comments", "shares"] as const).map((f) => (
-            <label key={f} className="block text-sm">
-              <span className="mb-1 block text-[var(--muted)] capitalize">{f}</span>
-              <input type="number" min="0" className={INPUT_CLS} value={form[f]} onChange={(e) => setField(f, e.target.value)} />
-            </label>
-          ))}
-        </div>
-
-        <div className="mt-5 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface-2)]">Cancel</button>
-          <button type="submit" disabled={submitting} className="rounded-lg bg-coral-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60">{submitting ? "Adding…" : "Add post"}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-interface PostsSectionProps {
-  clientServiceId: string;
-  serviceName: string;
-}
-
-function PostsSection({ clientServiceId, serviceName }: PostsSectionProps) {
-  const { error: toastError, success } = useToast();
-  const [posts, setPosts] = useState<Post[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-
-  const loadPosts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.get<Post[]>(`/posts?clientServiceId=${clientServiceId}`, getAccessToken());
-      setPosts(data);
-    } catch (err) {
-      toastError("Failed to load posts", err instanceof Error ? err.message : undefined);
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [clientServiceId, toastError]);
-
-  useEffect(() => { loadPosts(); }, [loadPosts]);
-
-  async function handleDelete(postId: string) {
-    try {
-      await api.del(`/posts/${postId}`, getAccessToken());
-      success("Post deleted");
-      setPosts((prev) => prev?.filter((p) => p.id !== postId) ?? prev);
-    } catch (err) {
-      toastError("Failed to delete post", err instanceof Error ? err.message : undefined);
-    }
-  }
-
-  return (
-    <section>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Posts — {serviceName}</p>
-        <button onClick={() => setShowAdd(true)} className="rounded-lg bg-coral-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600">+ Add post</button>
-      </div>
-
-      {loading ? (
-        <div className="card overflow-hidden p-0"><div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]">
-              <tr>{["Platform", "Published", "Reach", "Likes", "Comments", "Shares", ""].map((h) => (<th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">{h}</th>))}</tr>
-            </thead>
-            <tbody>{[0,1,2].map((i) => (<tr key={i} className="border-b border-[var(--border)] last:border-0">{[1,2,3,4,5,6,7].map((j) => (<td key={j} className="px-4 py-3"><div className="h-4 animate-pulse rounded bg-[var(--surface-2)]" /></td>))}</tr>))}</tbody>
-          </table>
-        </div></div>
-      ) : !posts || posts.length === 0 ? (
-        <div className="card py-10 text-center"><p className="text-sm text-[var(--muted)]">No posts yet. Use &ldquo;Add post&rdquo; to log the first one.</p></div>
-      ) : (
-        <div className="card overflow-hidden p-0"><div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]">
-              <tr>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Platform</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Published</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Reach</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Likes</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Comments</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Shares</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {posts.map((post) => (
-                <tr key={post.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)]">
-                  <td className="px-4 py-3"><PlatformBadge platform={post.platform} /></td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatDate(post.publishedAt)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(post.reach)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(post.likes)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(post.comments)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(post.shares)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleDelete(post.id)} className="text-[var(--muted)] hover:text-danger" title="Delete post">×</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div></div>
-      )}
-
-      {showAdd && (
-        <AddPostModal clientServiceId={clientServiceId} onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); loadPosts(); }} />
-      )}
-    </section>
-  );
-}
-
-// ─── Campaigns section ────────────────────────────────────────────────────────
-
-const CAMPAIGN_OBJECTIVES = [
-  { value: "LEAD_GENERATION",      label: "Lead Generation" },
-  { value: "AWARENESS",            label: "Awareness" },
-  { value: "REACH_AND_ENGAGEMENT", label: "Reach & Engagement" },
-  { value: "APP_INSTALL",          label: "App Install" },
-  { value: "SOCIAL_MEDIA_VIEWS",   label: "Social Media Views" },
-  { value: "INFLUENCES",           label: "Influences" },
-  { value: "OTHERS",               label: "Others" },
-] as const;
-
-interface AddCampaignForm {
-  campaignName: string;
-  adGroup: string;
-  adSet: string;
-  objective: string;
-  spend: string;
-  impressions: string;
-  clicks: string;
-  conversions: string;
-}
-
-const EMPTY_CAMPAIGN_FORM: AddCampaignForm = {
-  campaignName: "",
-  adGroup: "",
-  adSet: "",
-  objective: "",
-  spend: "0",
-  impressions: "0",
-  clicks: "0",
-  conversions: "0",
-};
-
-interface AddCampaignModalProps {
-  clientServiceId: string;
-  onClose: () => void;
-  onAdded: () => void;
-}
-
-function AddCampaignModal({ clientServiceId, onClose, onAdded }: AddCampaignModalProps) {
-  const { error: toastError, success } = useToast();
-  const [form, setForm] = useState<AddCampaignForm>(EMPTY_CAMPAIGN_FORM);
-  const [errors, setErrors] = useState<Partial<Record<keyof AddCampaignForm, string>>>({});
-  const [submitting, setSubmitting] = useState(false);
-
-  function validate(): boolean {
-    const e: Partial<Record<keyof AddCampaignForm, string>> = {};
-    if (!form.campaignName.trim()) e.campaignName = "Required";
-    if (!form.objective) e.objective = "Required";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!validate()) return;
-    setSubmitting(true);
-    try {
-      await api.post("/campaigns", {
-        clientServiceId,
-        campaignName: form.campaignName.trim(),
-        adGroup: form.adGroup.trim() || undefined,
-        adSet: form.adSet.trim() || undefined,
-        objective: form.objective,
-        spend: Number(form.spend) || 0,
-        impressions: Math.floor(Number(form.impressions)) || 0,
-        clicks: Math.floor(Number(form.clicks)) || 0,
-        conversions: Math.floor(Number(form.conversions)) || 0,
-      }, getAccessToken());
-      success("Campaign added");
-      onAdded();
-    } catch (err) {
-      toastError("Failed to add campaign", err instanceof Error ? err.message : undefined);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function setField(key: keyof AddCampaignForm, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
-  }
-
-  return (
-    <Modal title="Add Campaign" onClose={onClose}>
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="block text-sm sm:col-span-2">
-            <span className="mb-1 block text-[var(--muted)]">Campaign Name <span className="text-danger">*</span></span>
-            <input type="text" className={`${INPUT_CLS} ${errors.campaignName ? "border-danger" : ""}`} value={form.campaignName} onChange={(e) => setField("campaignName", e.target.value)} placeholder="e.g. Summer Sale 2024" />
-            {errors.campaignName && <p className="mt-1 text-xs text-danger">{errors.campaignName}</p>}
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-[var(--muted)]">Ad Group</span>
-            <input type="text" className={INPUT_CLS} value={form.adGroup} onChange={(e) => setField("adGroup", e.target.value)} placeholder="Optional" />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-[var(--muted)]">Ad Set</span>
-            <input type="text" className={INPUT_CLS} value={form.adSet} onChange={(e) => setField("adSet", e.target.value)} placeholder="Optional" />
-          </label>
-          <label className="block text-sm sm:col-span-2">
-            <span className="mb-1 block text-[var(--muted)]">Objective <span className="text-danger">*</span></span>
-            <select className={`${INPUT_CLS} ${errors.objective ? "border-danger" : ""}`} value={form.objective} onChange={(e) => setField("objective", e.target.value)}>
-              <option value="">Select objective…</option>
-              {CAMPAIGN_OBJECTIVES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            {errors.objective && <p className="mt-1 text-xs text-danger">{errors.objective}</p>}
-          </label>
-          <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Spend (₹)</span><input type="number" min="0" className={INPUT_CLS} value={form.spend} onChange={(e) => setField("spend", e.target.value)} /></label>
-          <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Impressions</span><input type="number" min="0" step="1" className={INPUT_CLS} value={form.impressions} onChange={(e) => setField("impressions", e.target.value)} /></label>
-          <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Clicks</span><input type="number" min="0" step="1" className={INPUT_CLS} value={form.clicks} onChange={(e) => setField("clicks", e.target.value)} /></label>
-          <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Conversions</span><input type="number" min="0" step="1" className={INPUT_CLS} value={form.conversions} onChange={(e) => setField("conversions", e.target.value)} /></label>
-        </div>
-        <div className="mt-5 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface-2)]">Cancel</button>
-          <button type="submit" disabled={submitting} className="rounded-lg bg-coral-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60">{submitting ? "Adding…" : "Add Campaign"}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-interface CampaignsSectionProps {
-  clientServiceId: string;
-  serviceName: string;
-}
-
-function CampaignsSection({ clientServiceId, serviceName }: CampaignsSectionProps) {
-  const { error: toastError, success } = useToast();
-  const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-
-  const loadCampaigns = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.get<Campaign[]>(`/campaigns?clientServiceId=${clientServiceId}`, getAccessToken());
-      setCampaigns(data);
-    } catch (err) {
-      toastError("Failed to load campaigns", err instanceof Error ? err.message : undefined);
-      setCampaigns([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [clientServiceId, toastError]);
-
-  useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
-
-  async function handleDelete(campaignId: string) {
-    try {
-      await api.del(`/campaigns/${campaignId}`, getAccessToken());
-      success("Campaign deleted");
-      setCampaigns((prev) => prev?.filter((c) => c.id !== campaignId) ?? prev);
-    } catch (err) {
-      toastError("Failed to delete campaign", err instanceof Error ? err.message : undefined);
-    }
-  }
-
-  const objectiveLabel = (val: string) =>
-    CAMPAIGN_OBJECTIVES.find((o) => o.value === val)?.label ?? val;
-
-  return (
-    <section>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Campaigns — {serviceName}</p>
-        <button onClick={() => setShowAdd(true)} className="rounded-lg bg-coral-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600">+ Add Campaign</button>
-      </div>
-
-      {loading ? (
-        <div className="card overflow-hidden p-0"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]"><tr>{["Campaign","Objective","Spend","Impressions","Clicks","Conversions",""].map((h) => (<th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">{h}</th>))}</tr></thead><tbody>{[0,1,2].map((i) => (<tr key={i} className="border-b border-[var(--border)] last:border-0">{[1,2,3,4,5,6,7].map((j) => (<td key={j} className="px-4 py-3"><div className="h-4 animate-pulse rounded bg-[var(--surface-2)]" /></td>))}</tr>))}</tbody></table></div></div>
-      ) : !campaigns || campaigns.length === 0 ? (
-        <div className="card py-10 text-center"><p className="text-sm text-[var(--muted)]">No campaigns yet. Click &ldquo;Add Campaign&rdquo; to log the first one.</p></div>
-      ) : (
-        <div className="card overflow-hidden p-0"><div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]">
-              <tr>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Campaign</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Objective</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Spend (₹)</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Impressions</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Clicks</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Conversions</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.map((c) => (
-                <tr key={c.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)]">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-[var(--ink)]">{c.campaignName}</p>
-                    {(c.adGroup || c.adSet) && <p className="text-xs text-[var(--muted)]">{[c.adGroup, c.adSet].filter(Boolean).join(" · ")}</p>}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{objectiveLabel(c.objective)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatCurrency(c.spend)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(c.impressions)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(c.clicks)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(c.conversions)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleDelete(c.id)} className="text-[var(--muted)] hover:text-danger" title="Delete campaign">×</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div></div>
-      )}
-
-      {showAdd && <AddCampaignModal clientServiceId={clientServiceId} onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); loadCampaigns(); }} />}
-    </section>
-  );
-}
-
-// ─── Leads section ────────────────────────────────────────────────────────────
-
-interface AddLeadForm {
-  month: string;
-  count: string;
-  revenueAttributed: string;
-}
-
-const EMPTY_LEAD_FORM: AddLeadForm = { month: "", count: "0", revenueAttributed: "0" };
-
-interface AddLeadModalProps {
-  clientId: string;
-  onClose: () => void;
-  onAdded: () => void;
-}
-
-function AddLeadModal({ clientId, onClose, onAdded }: AddLeadModalProps) {
-  const { error: toastError, success } = useToast();
-  const [form, setForm] = useState<AddLeadForm>(EMPTY_LEAD_FORM);
-  const [errors, setErrors] = useState<Partial<Record<keyof AddLeadForm, string>>>({});
-  const [submitting, setSubmitting] = useState(false);
-
-  function validate(): boolean {
-    const e: Partial<Record<keyof AddLeadForm, string>> = {};
-    if (!form.month) e.month = "Required";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!validate()) return;
-    setSubmitting(true);
-    try {
-      await api.post("/leads", {
-        clientId,
-        month: form.month,
-        count: Math.floor(Number(form.count)) || 0,
-        revenueAttributed: Number(form.revenueAttributed) || 0,
-      }, getAccessToken());
-      success("Lead entry added");
-      onAdded();
-    } catch (err) {
-      toastError("Failed to add lead entry", err instanceof Error ? err.message : undefined);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function setField(key: keyof AddLeadForm, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
-  }
-
-  return (
-    <Modal title="Add entry" onClose={onClose}>
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="block text-sm sm:col-span-2">
-            <span className="mb-1 block text-[var(--muted)]">Month <span className="text-danger">*</span></span>
-            <input type="month" className={`${INPUT_CLS} ${errors.month ? "border-danger" : ""}`} value={form.month} onChange={(e) => setField("month", e.target.value)} />
-            {errors.month && <p className="mt-1 text-xs text-danger">{errors.month}</p>}
-          </label>
-          <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Leads</span><input type="number" min="0" step="1" className={INPUT_CLS} value={form.count} onChange={(e) => setField("count", e.target.value)} /></label>
-          <label className="block text-sm"><span className="mb-1 block text-[var(--muted)]">Revenue attributed (₹)</span><input type="number" min="0" className={INPUT_CLS} value={form.revenueAttributed} onChange={(e) => setField("revenueAttributed", e.target.value)} /></label>
-        </div>
-        <div className="mt-5 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface-2)]">Cancel</button>
-          <button type="submit" disabled={submitting} className="rounded-lg bg-coral-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60">{submitting ? "Adding…" : "Add entry"}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-interface LeadsSectionProps {
-  clientId: string;
-}
-
-function LeadsSection({ clientId }: LeadsSectionProps) {
-  const { error: toastError, success } = useToast();
-  const [leads, setLeads] = useState<Lead[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-
-  const loadLeads = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.get<Lead[]>(`/leads?clientId=${clientId}`, getAccessToken());
-      setLeads(data);
-    } catch (err) {
-      toastError("Failed to load leads", err instanceof Error ? err.message : undefined);
-      setLeads([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [clientId, toastError]);
-
-  useEffect(() => { loadLeads(); }, [loadLeads]);
-
-  async function handleDelete(leadId: string) {
-    try {
-      await api.del(`/leads/${leadId}`, getAccessToken());
-      success("Lead entry deleted");
-      setLeads((prev) => prev?.filter((l) => l.id !== leadId) ?? prev);
-    } catch (err) {
-      toastError("Failed to delete lead entry", err instanceof Error ? err.message : undefined);
-    }
-  }
-
-  return (
-    <section>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Lead pipeline</p>
-        <button onClick={() => setShowAdd(true)} className="rounded-lg bg-coral-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600">+ Add entry</button>
-      </div>
-
-      {loading ? (
-        <div className="card overflow-hidden p-0"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]"><tr>{["Month","Leads","Revenue attributed (₹)",""].map((h) => (<th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">{h}</th>))}</tr></thead><tbody>{[0,1,2].map((i) => (<tr key={i} className="border-b border-[var(--border)] last:border-0">{[1,2,3,4].map((j) => (<td key={j} className="px-4 py-3"><div className="h-4 animate-pulse rounded bg-[var(--surface-2)]" /></td>))}</tr>))}</tbody></table></div></div>
-      ) : !leads || leads.length === 0 ? (
-        <div className="card py-10 text-center"><p className="text-sm text-[var(--muted)]">No lead data yet. Use &ldquo;Add entry&rdquo; to log the first month.</p></div>
-      ) : (
-        <div className="card overflow-hidden p-0"><div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]">
-              <tr>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Month</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Leads</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Revenue attributed (₹)</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((lead) => (
-                <tr key={lead.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)]">
-                  <td className="px-4 py-3 font-medium text-[var(--ink)]">{formatMonth(lead.month)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatNumber(lead.count)}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{formatCurrency(lead.revenueAttributed)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleDelete(lead.id)} className="text-[var(--muted)] hover:text-danger" title="Delete entry">×</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div></div>
-      )}
-
-      {showAdd && <AddLeadModal clientId={clientId} onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); loadLeads(); }} />}
-    </section>
-  );
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ClientDetailPage() {
@@ -1501,16 +931,11 @@ export default function ClientDetailPage() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  if (loading) return <p className="text-sm text-[var(--muted)]">Loading…</p>;
+  if (loading) return <PageLoader fullScreen={false} />;
   if (pageError) return <p className="text-sm text-danger">{pageError}</p>;
   if (!client) return null;
 
   const isSuspended = client.status === "SUSPENDED";
-
-  const smmSubs = (subscriptions ?? []).filter((s) => s.status === "ACTIVE" && s.service.category === "SMM");
-  const adsSubs = (subscriptions ?? []).filter(
-    (s) => s.status === "ACTIVE" && (s.service.category === "GOOGLE_ADS" || s.service.category === "META_ADS")
-  );
 
   return (
     <div className="space-y-6">
@@ -1667,12 +1092,20 @@ export default function ClientDetailPage() {
       <section>
         <div className="mb-3 flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Services</p>
-          <button
-            onClick={() => setShowAddService(true)}
-            className="rounded-lg bg-coral-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
-          >
-            + Add service
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/admin/reporting?clientId=${id}`}
+              className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] hover:bg-[var(--surface-2)]"
+            >
+              Go to Reporting →
+            </Link>
+            <button
+              onClick={() => setShowAddService(true)}
+              className="rounded-lg bg-coral-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
+            >
+              + Add service
+            </button>
+          </div>
         </div>
 
         {!subscriptions || subscriptions.length === 0 ? (
@@ -1781,19 +1214,6 @@ export default function ClientDetailPage() {
           </div></div>
         )}
       </section>
-
-      {/* Posts — one section per active SMM subscription */}
-      {smmSubs.map((sub) => (
-        <PostsSection key={sub.id} clientServiceId={sub.id} serviceName={sub.service.name} />
-      ))}
-
-      {/* Campaigns — one section per active Ads subscription */}
-      {adsSubs.map((sub) => (
-        <CampaignsSection key={sub.id} clientServiceId={sub.id} serviceName={sub.service.name} />
-      ))}
-
-      {/* Leads — client-level pipeline */}
-      <LeadsSection clientId={id} />
 
       {/* Modals */}
       {showEdit && client && (
