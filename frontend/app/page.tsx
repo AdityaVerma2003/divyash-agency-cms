@@ -1071,8 +1071,8 @@ function TrustedBySection() {
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[var(--page-bg)] to-transparent md:w-32" />
 
         <div className="space-y-6 md:space-y-8">
-          <LogoMarquee logos={CLIENT_LOGOS_ROW_1} baseVelocity={3} />
-          <LogoMarquee logos={CLIENT_LOGOS_ROW_2} baseVelocity={3} reverse />
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_1} baseVelocity={1} />
+          <LogoMarquee logos={CLIENT_LOGOS_ROW_2} baseVelocity={1} reverse />
         </div>
       </div>
     </section>
